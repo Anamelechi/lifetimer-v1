@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTimerStore } from "@/store/timerStore";
 import { diffSince } from "@/lib/dateCalc";
@@ -36,6 +36,14 @@ function combineDateTime(dateStr, timeStr = "00:00") {
 }
 
 export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen p-6" />}> 
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+function HomeContent() {
   const search = useSearchParams();
   const { birthDate, setBirthDate } = useTimerStore();
   const [nowTick, setNowTick] = useState(0);

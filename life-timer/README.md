@@ -30,3 +30,31 @@ PWA notes
 
 Scaling note
 - The /api/fact route proxies Google APIs and summarizes with Gemini. For production scale, move this to a small FastAPI backend with caching (Redis/SQLite) as described in the prompt.
+
+## Docker
+
+Development (hot reload):
+
+```
+docker compose up
+```
+
+Production (optimized image, next start):
+
+```
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Set environment variables via an `.env` file in the `life-timer/` folder or your orchestrator:
+
+```
+GOOGLE_CSE_ID=your_id
+GOOGLE_API_KEY=your_key
+GEMINI_API_KEY=your_key
+```
+
+Stop:
+
+```
+docker compose -f docker-compose.prod.yml down
+```

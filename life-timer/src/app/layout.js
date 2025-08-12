@@ -16,8 +16,8 @@ export const metadata = {
   description: "A PWA that counts how long you've been alive.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.ico",
-    apple: "/icons/touch-icon-iphone.png",
+  icon: "/favicon.ico",
+  apple: "/icons/apple-touch-icon.png",
   },
   appleWebApp: {
     capable: true,

@@ -22,7 +22,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY next.config.mjs ./
 COPY public ./public
-COPY .next ./\.next
+# Copy the production build output from the builder stage (not the host)
+COPY --from=builder /app/.next ./\.next
 
 EXPOSE 3000
 CMD ["npm", "start"]
