@@ -1,0 +1,21 @@
+# Gitpod configuration for Life Timer
+# Docs: https://www.gitpod.io/docs/configure
+
+image:
+  file: .gitpod.Dockerfile
+
+tasks:
+  - name: Install & Dev
+    init: |
+      cd life-timer
+      npm ci
+    command: |
+      cd life-timer
+      npm run dev
+
+ports:
+  - port: 3000
+    onOpen: open-preview
+    visibility: public
+
+# Optional: prebuilds can be enabled in your Git provider settings
