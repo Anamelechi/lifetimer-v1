@@ -1,6 +1,8 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { useTimerStore } from "@/store/timerStore";
 import { diffSince } from "@/lib/dateCalc";
@@ -45,6 +47,7 @@ export default function Home() {
 
 function HomeContent() {
   const search = useSearchParams();
+  const router = useRouter();
   const { birthDate, setBirthDate } = useTimerStore();
   const [nowTick, setNowTick] = useState(0);
   const [fact, setFact] = useState(null);
@@ -60,6 +63,17 @@ function HomeContent() {
     const savedTime = localStorage.getItem("life-timer:birthTime");
     if (savedDate) setBirthDate(combineDateTime(savedDate, savedTime || "00:00"));
   }, [setBirthDate]);
+
+  // On first visit without birthDate, go to onboarding welcome
+  useEffect(() => {
+    if (mounted && !birthDate) {
+      const hasVisited = localStorage.getItem('life-timer:visited');
+      if (!hasVisited) {
+        localStorage.setItem('life-timer:visited', '1');
+        router.replace('/device/welcome');
+      }
+    }
+  }, [mounted, birthDate, router]);
 
   // Persist birthDate (store local date and time separately)
   useEffect(() => {
@@ -116,25 +130,51 @@ function HomeContent() {
   const secondsSinceMinuteStart = now ? now.getSeconds() : null;
   const daysSinceMonthStart = now && startOfMonth ? Math.floor((now - startOfMonth) / (24 * 3600000)) : null;
   const weeksSinceMonthStart = daysSinceMonthStart != null ? Math.floor(daysSinceMonthStart / 7) : null;
+  const daysSinceLastCompletedWeek =
+    daysSinceMonthStart != null ? (daysSinceMonthStart % 7) : null;
 
   // Fetch random fact, cached by year in IndexedDB
   useEffect(() => {
     const run = async () => {
       if (!birthDate) return;
       const year = new Date(birthDate).getFullYear();
-      const cacheKey = `fact:${year}`;
+  // Rotate the displayed fact daily by including UTC day index in the key
+  const dayIndex = Math.floor(Date.now() / 86400000);
+  const cacheKey = `fact:${year}:${dayIndex}`;
       const cached = await get(cacheKey);
       if (cached) {
-        setFact(cached);
+        // Migrate legacy cached objects (from older JSON API) to string
+        if (typeof cached === "string") {
+          setFact(cached);
+          return;
+        }
+        if (cached && typeof cached === "object") {
+          const migrated = typeof cached.text === "string" ? cached.text : String(cached);
+          await set(cacheKey, migrated);
+          setFact(migrated);
+          return;
+        }
+        // Fallback coercion
+        setFact(String(cached));
         return;
       }
       setLoadingFact(true);
       try {
         const res = await fetch(`/api/fact?year=${year}`, { cache: "no-store" });
         if (res.ok) {
-          const data = await res.json();
-          await set(cacheKey, data);
-          setFact(data);
+          const ct = res.headers.get("content-type") || "";
+          let value;
+          if (ct.includes("text/plain")) {
+            value = await res.text();
+          } else if (ct.includes("application/json")) {
+            const j = await res.json();
+            value = typeof j?.text === "string" ? j.text : JSON.stringify(j);
+          } else {
+            // Last resort, try text
+            value = await res.text();
+          }
+          await set(cacheKey, value);
+          setFact(value);
         }
       } catch {}
       finally {
@@ -163,9 +203,14 @@ function HomeContent() {
   return (
     <div className="min-h-screen flex items-start justify-center p-6">
       <main className="w-full max-w-md">
-        {/* Top bar */}
-        <div className="py-2 text-center">
+        {/* Top bar with menu */}
+        <div className="py-2 flex items-center justify-between">
           <h1 className="text-base tracking-wide text-white/90">Life Timer</h1>
+          <div className="text-sm flex items-center gap-3 text-white/70">
+            <Link href="/device/welcome" className="hover:text-white">Welcome</Link>
+            <Link href="/device" className="hover:text-white">Device</Link>
+            <Link href="/age" className="hover:text-white">Age</Link>
+          </div>
         </div>
 
         {/* Seconds Alive + Dial */}
@@ -183,7 +228,7 @@ function HomeContent() {
           <Stat label="YEARS" value={mounted ? diff?.years : null} />
           <Stat label="MONTHS" value={mounted ? diff?.months : null} />
           <Stat label="WEEKS" value={mounted ? weeksSinceMonthStart : null} />
-          <Stat label="DAYS" value={mounted ? daysSinceMonthStart : null} />
+          <Stat label="DAYS" value={mounted ? daysSinceLastCompletedWeek : null} />
           <Stat label="HOURS" value={mounted ? hoursSinceDayStart : null} />
           <Stat label="MINUTES" value={mounted ? minutesSinceHourStart : null} />
           <Stat label="SECONDS" value={mounted ? secondsSinceMinuteStart : null} full />
@@ -217,12 +262,7 @@ function HomeContent() {
               {birthDate && (
                 <div>
                   {loadingFact && <p className="text-white/70">Fetching a fun fact…</p>}
-                  {fact && (
-                    <div>
-                      <p className="text-white/90 leading-relaxed">{fact.text}</p>
-                      {fact.year && <p className="mt-2 text-xs text-white/60">Year: {fact.year}</p>}
-                    </div>
-                  )}
+                  {fact && <p className="text-white/90 leading-relaxed">{fact}</p>}
                   {!loadingFact && !fact && (
                     <p className="text-white/70">No fact available offline. Try again online.</p>
                   )}

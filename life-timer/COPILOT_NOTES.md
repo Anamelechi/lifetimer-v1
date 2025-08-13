@@ -1,0 +1,65 @@
+# Copilot Notes — Life Timer
+
+A living log to carry context across chats/devices. Use this as the source of truth for decisions, progress, and next steps.
+
+## How to resume on another device
+- Start a new chat and say: “Please read life-timer/COPILOT_NOTES.md and continue from the Open tasks section.”
+- Ask the assistant to update this file after each meaningful change.
+
+## Project snapshot
+- Stack: Next.js 15 (App Router), Tailwind CSS, Zustand, next-pwa, IndexedDB (idb-keyval)
+- APIs: Google CSE + Gemini for random facts (optional; requires env vars)
+- Runtime: Docker (dev and prod compose), PWA with offline page
+
+## Decision and change log (high level)
+- 2025-08-13: Switch facts to Wikipedia API with daily rotation; remove Google/Gemini envs
+  - Files: src/app/api/fact/route.js, src/app/page.js, README.md, docker-compose.yml, docker-compose.prod.yml, .env.example
+  - Notes: Parse Events section wikitext; fallback to page summary; cache key includes UTC day index
+- 2025-08-13: Mobile-like back navigation with BackButton component
+  - Files: src/components/BackButton.js, src/app/age/page.js, src/app/device/page.js, src/app/device/ios/page.js
+  - Notes: Back button falls back to /device/welcome when no history; consistent header layout
+- 2025-08-13: Welcome page UX + Android&Windows label; black+white bordered Continue buttons
+  - Files: src/app/device/welcome/page.js, src/app/device/page.js, src/app/age/page.js, src/app/device/ios/page.js
+  - Notes: Heartfelt welcome, two primary actions on welcome; install button expanded to Windows; consistent CTA styling
+- 2025-08-13: Onboarding flow: device/welcome → age → home; add menu and first-visit redirect
+  - Files: src/app/device/welcome/page.js, src/app/device/page.js, src/app/device/ios/page.js, src/app/age/page.js, src/app/page.js
+  - Notes: Android install prompt on welcome/device; iOS page has Continue button; home has top-right menu and redirect when unset
+- 2025-08-13: Android install prompt on /device; iOS instructions page
+  - Files: src/app/device/page.js, src/app/device/ios/page.js
+  - Notes: Use beforeinstallprompt + appinstalled; iOS page with Safari steps
+- 2025-08-13: Add /age and /device pages; extend store with deviceType
+  - Files: src/app/age/page.js, src/app/device/page.js, src/store/timerStore.js, README.md
+  - Notes: Persist selections via localStorage and navigate between steps
+- Bootstrap: Next.js PWA “Life Timer”; API route /api/fact; Dockerfile and dev compose; Gitpod config
+- Gitpod: Switched to valid workspace-full image
+- Dev compose: Hot reload volumes and environment fixed
+- PWA: Removed public/manifest.json to avoid conflict with app route manifest
+- UI: Dial + glass panels; demo mode (?demo=1) for exact screenshot values
+- Semantics: Years; months since last birthday; weeks/days since month start; hours since day start; minutes since hour start; seconds since last minute
+- Hydration: Time-based rendering gated until client mount
+- Dial: 12 ticks at rim; cardinal ticks 50% base; others 25%; thicker ring; center value scaled down
+- Production: Added docker-compose.prod.yml and docs
+- 2025-08-12: Prod run fixes — Dockerfile copies .next from builder; useSearchParams wrapped in Suspense; prod stack healthy on :3000
+- Inputs: Date + time-of-birth inputs with localStorage persistence (date/time saved separately)
+
+## Open tasks
+- PWA installability audit
+  - Verify maskable icons, theme/background colors, SW registration in prod
+  - Optional: run Lighthouse and address warnings
+- Random Fact API keys
+  - Provide GOOGLE_CSE_ID, GOOGLE_API_KEY, GEMINI_API_KEY in compose/.env; handle missing keys gracefully in UI
+- Minor UX polish
+  - Fine-tune dial spacing/typography on small screens
+- Tests/CI (optional)
+  - Unit tests for date math; lint/typecheck step in CI
+
+## Working agreement
+- At the end of a session, add a dated entry under “Decision and change log” and update “Open tasks”. Keep entries short and concrete.
+
+## Template for future entries
+- YYYY-MM-DD: Summary of change
+  - Files: list touched paths
+  - Notes: reasoning/links if relevant
+
+---
+If you’re a future assistant: read this file first, scan the repo, then tackle items under “Open tasks”. Keep this file updated.

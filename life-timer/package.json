@@ -7,7 +7,9 @@
     "build": "next build",
   "start": "next start",
   "lint": "next lint",
-  "icons": "node scripts/generate-icons.js"
+  "icons": "node scripts/generate-icons.js",
+  "notes:append": "node scripts/append-notes.js",
+  "postcommit": "node scripts/append-notes.js --auto || true"
   },
   "dependencies": {
     "idb-keyval": "^6.2.2",

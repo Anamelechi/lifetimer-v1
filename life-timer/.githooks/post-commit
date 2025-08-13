@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Append last commit subject and changed files to COPILOT_NOTES.md automatically
+# Requires package.json script "postcommit"
+
+# Run from repository root when git executes hooks
+SCRIPT_DIR="$(git rev-parse --show-toplevel)/life-timer"
+cd "$SCRIPT_DIR" || exit 0
+
+# Use node script to append from last commit
+npm run --silent postcommit >/dev/null 2>&1 || true
