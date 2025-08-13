@@ -12,6 +12,8 @@ A living log to carry context across chats/devices. Use this as the source of tr
 - Runtime: Docker (dev and prod compose), PWA with offline page
 
 ## Decision and change log (high level)
+- 2025-08-13: MVP ready - running on local host
+  - Files: life-timer/.githooks/post-commit, life-timer/COPILOT_NOTES.md, life-timer/README.md, life-timer/docker-compose.prod.yml, life-timer/docker-compose.yml, life-timer/package.json, life-timer/scripts/append-notes.js, life-timer/src/app/age/page.js, life-timer/src/app/api/fact/route.js, life-timer/src/app/device/ios/page.js, life-timer/src/app/device/page.js, life-timer/src/app/device/welcome/page.js, life-timer/src/app/page.js, life-timer/src/components/BackButton.js, life-timer/src/store/timerStore.js
 - 2025-08-13: Switch facts to Wikipedia API with daily rotation; remove Google/Gemini envs
   - Files: src/app/api/fact/route.js, src/app/page.js, README.md, docker-compose.yml, docker-compose.prod.yml, .env.example
   - Notes: Parse Events section wikitext; fallback to page summary; cache key includes UTC day index
