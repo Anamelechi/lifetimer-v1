@@ -9,10 +9,9 @@ const withPWA = require('next-pwa')({
 	disable: process.env.NODE_ENV === 'development',
 });
 
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-	// Use a custom build directory to avoid permission conflicts from previous runs
-	distDir: 'distdir',
 	async headers() {
 		return [
 			{
