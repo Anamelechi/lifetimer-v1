@@ -1,47 +1,40 @@
 #!/usr/bin/env bash
-# Append last commit subject and changed files to COPILOT_NOTES.md automatically
-# Requires package.json script "postcommit"
-#
-# Hardening per Git docs and GitHub Actions behavior:
-# - Skip when running in CI (GitHub sets CI=true)
-# - Skip during rebase/merge operations
-# - Avoid infinite loop when only the notes file changed
-# - Auto-amend current commit to include the notes change, without creating an extra commit
+# post-commit hook
+# Purpose: Append last commit info to life-timer/COPILOT_NOTES.md via npm script.
+# Permanent safeguards to avoid interfering with CI and history rewrites.
+# References:
+# - Git hooks docs: https://git-scm.com/docs/githooks
+# - Rebase state dirs: https://git-scm.com/docs/git-rebase
 
-set -u
+set -euo pipefail
 
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo "")"
-[ -n "$REPO_ROOT" ] || exit 0
-NOTES_REL="life-timer/COPILOT_NOTES.md"
+# Resolve repo paths
+REPO_ROOT="$(git rev-parse --show-toplevel)"
 GIT_DIR="$(git rev-parse --git-dir)"
 
-# 1) Skip in CI environments (GitHub Actions sets CI=true)
-if [ "${CI:-}" = "true" ]; then
+# 1) Skip in CI (e.g., GitHub Actions sets CI=true)
+if [ -n "${CI:-}" ]; then
 	exit 0
 fi
 
-# 2) Skip during rebase or merge sequences
-if [ -d "$GIT_DIR/rebase-apply" ] || [ -d "$GIT_DIR/rebase-merge" ] || [ -f "$GIT_DIR/MERGE_HEAD" ]; then
+# 2) Skip during history operations that replay commits or alter HEAD
+#    Detect standard state files/dirs managed by Git
+if [ -d "$GIT_DIR/rebase-merge" ] || [ -d "$GIT_DIR/rebase-apply" ] \
+	 || [ -f "$GIT_DIR/MERGE_HEAD" ] || [ -f "$GIT_DIR/CHERRY_PICK_HEAD" ] \
+	 || [ -f "$GIT_DIR/REVERT_HEAD" ]; then
 	exit 0
 fi
 
-# 3) If the last commit only touched the notes file, skip to avoid loops
-if git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | grep -v -x "$NOTES_REL" | grep -q .; then
-	: # other files changed; proceed
-else
-	# Either only notes changed or cannot determine; skip
+# 3) Optional manual escape hatch: allow users to opt out per-commit
+#    Add [skip notes] in the commit message to bypass the hook
+LAST_MSG_FILE="$GIT_DIR/COMMIT_EDITMSG"
+if [ -f "$LAST_MSG_FILE" ] && grep -qi "\[skip notes\]" "$LAST_MSG_FILE"; then
 	exit 0
 fi
 
-# 4) Run the node script from the life-timer directory
+# Run the append script from the app directory
 SCRIPT_DIR="$REPO_ROOT/life-timer"
-if [ -d "$SCRIPT_DIR" ]; then
-	( cd "$SCRIPT_DIR" && npm run --silent postcommit >/dev/null 2>&1 ) || true
-fi
+cd "$SCRIPT_DIR" || exit 0
 
-# 5) If notes file changed, stage and amend current commit without re-triggering hooks
-if ! git -C "$REPO_ROOT" diff --quiet -- "$NOTES_REL"; then
-	git -C "$REPO_ROOT" add "$NOTES_REL" || true
-	# --no-verify to avoid hook recursion; if amend fails, ignore to not break commit flow
-	git -C "$REPO_ROOT" commit --amend --no-edit --no-verify >/dev/null 2>&1 || true
-fi
+# Execute quietly; never fail the commit
+npm run --silent postcommit >/dev/null 2>&1 || true
