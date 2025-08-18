@@ -12,6 +12,8 @@ A living log to carry context across chats/devices. Use this as the source of tr
 - Runtime: Docker (dev and prod compose), PWA with offline page
 
 ## Decision and change log (high level)
+- 2025-08-18: github actions test
+  - Files: .github/workflows/ci-cd.yml, life-timer/COPILOT_NOTES.md
 - 2025-08-18: Add CI/CD (GitHub Actions) for lint+build on PRs and deploy to server on main
   - Files: .github/workflows/ci-cd.yml, life-timer/COPILOT_NOTES.md
   - Notes: Uses Node 20; bundles app and deploys via SSH to /home/anamelechi/docker-apache; calls deploy.sh if present, else docker compose up -d
