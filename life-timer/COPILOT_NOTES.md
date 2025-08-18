@@ -12,6 +12,8 @@ A living log to carry context across chats/devices. Use this as the source of tr
 - Runtime: Docker (dev and prod compose), PWA with offline page
 
 ## Decision and change log (high level)
+- 2025-08-18: birth page update
+  - Files: life-timer/.gitignore, life-timer/Dockerfile, life-timer/next.config.mjs, life-timer/src/app/age/page.js, life-timer/src/app/api/astro-note/route.js, life-timer/src/app/api/geo/route.js, life-timer/src/app/birth-chart/page.js, life-timer/src/lib/astro.js
 - 2025-08-18: test: trigger hook once
   - Files: life-timer/.githooks/post-commit, life-timer/COPILOT_NOTES.md, life-timer/README.md
 - 2025-08-18: test: trigger hook once
