@@ -14,22 +14,26 @@ async function fetchWithTimeout(url, opts = {}, timeoutMs = 10000) {
 
 // Helper: offset at given UTC instant for an IANA zone
 function offsetSecondsAtUtc(iana, dateUtc) {
-  const dtf = new Intl.DateTimeFormat('en-US', {
-    timeZone: iana,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false,
-  });
-  const parts = dtf.formatToParts(dateUtc);
-  const get = (t) => Number(parts.find(p => p.type === t)?.value || 0);
-  const y = get('year');
-  const m = get('month');
-  const d = get('day');
-  const hh = get('hour');
-  const mm = get('minute');
-  const ss = get('second');
-  const asUtc = Date.UTC(y, m - 1, d, hh, mm, ss);
-  return Math.round((asUtc - dateUtc.getTime()) / 1000);
+  try {
+    const dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone: iana,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false,
+    });
+    const parts = dtf.formatToParts(dateUtc);
+    const get = (t) => Number(parts.find(p => p.type === t)?.value || 0);
+    const y = get('year');
+    const m = get('month');
+    const d = get('day');
+    const hh = get('hour');
+    const mm = get('minute');
+    const ss = get('second');
+    const asUtc = Date.UTC(y, m - 1, d, hh, mm, ss);
+    return Math.round((asUtc - dateUtc.getTime()) / 1000);
+  } catch {
+    return null;
+  }
 }
 
 // Helper: given local wall time ISO (YYYY-MM-DDTHH:mm:ss) in IANA zone, compute offset seconds via fixed-point iteration
