@@ -13,6 +13,26 @@ const withPWA = require('next-pwa')({
 const nextConfig = {
 	// Use a custom build directory to avoid permission conflicts from previous runs
 	distDir: 'distdir',
+	async headers() {
+		return [
+			{
+				source: '/sw.js',
+				headers: [
+					{ key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, proxy-revalidate' },
+					{ key: 'Pragma', value: 'no-cache' },
+					{ key: 'Expires', value: '0' },
+				],
+			},
+			{
+				source: '/workbox-:hash.js',
+				headers: [
+					{ key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, proxy-revalidate' },
+					{ key: 'Pragma', value: 'no-cache' },
+					{ key: 'Expires', value: '0' },
+				],
+			},
+		];
+	},
 	async redirects() {
 		return [
 			{ source: '/personal-info', destination: '/age', permanent: false },

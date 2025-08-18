@@ -1,10 +1,1 @@
-{
-  "/age/page": "app/age/page.js",
-  "/api/astro-note/route": "app/api/astro-note/route.js",
-  "/api/fact/route": "app/api/fact/route.js",
-  "/api/geo/route": "app/api/geo/route.js",
-  "/birth-chart/page": "app/birth-chart/page.js",
-  "/device/welcome/page": "app/device/welcome/page.js",
-  "/favicon.ico/route": "app/favicon.ico/route.js",
-  "/page": "app/page.js"
-}
+{}
