@@ -29,8 +29,14 @@ function offsetSecondsAtUtc(iana, dateUtc) {
     const hh = get('hour');
     const mm = get('minute');
     const ss = get('second');
-    const asUtc = Date.UTC(y, m - 1, d, hh, mm, ss);
-    return Math.round((asUtc - dateUtc.getTime()) / 1000);
+  const asUtc = Date.UTC(y, m - 1, d, hh, mm, ss);
+  // Raw difference in seconds between the local wall time interpreted as UTC and the actual UTC instant.
+  let diff = Math.round((asUtc - dateUtc.getTime()) / 1000);
+  // Normalize into [-12h, +14h] to correct for date wrap-around.
+  const DAY = 86400;
+  while (diff > 14 * 3600) diff -= DAY;
+  while (diff < -12 * 3600) diff += DAY;
+  return diff;
   } catch {
     return null;
   }

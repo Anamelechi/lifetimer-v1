@@ -188,8 +188,8 @@ export default function PersonalInfoPage() {
                 Date
                 <input type="date" className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none" value={dateStr} onChange={(e) => setDateStr(e.target.value)} />
               </label>
-              <label className="block text-sm text-white/80 col-span-1">
-                Time (optional)
+      <label className="block text-sm text-white/80 col-span-1">
+    Time
                 <input type="time" step="60" className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none" value={timeStr} onChange={(e) => setTimeStr(e.target.value)} />
               </label>
             </div>

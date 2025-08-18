@@ -11,8 +11,8 @@ const withPWA = require('next-pwa')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-	// Use a custom build directory to avoid local .next permission conflicts
-	distDir: 'build',
+	// Use a custom build directory to avoid permission conflicts from previous runs
+	distDir: 'distdir',
 	async redirects() {
 		return [
 			{ source: '/personal-info', destination: '/age', permanent: false },
