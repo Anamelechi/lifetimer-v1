@@ -60,3 +60,4 @@ Automation:
 ## New pages
 - Age selection: /age
 - Device selection: /device
+
