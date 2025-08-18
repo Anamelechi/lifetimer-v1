@@ -14,15 +14,15 @@ export default function DeviceWelcomePage() {
 You’ve already traveled through countless sunrises, heartbeats, and breaths to arrive at this moment. Now you can watch your story unfold in real time down to the exact second so you remember that life isn’t someday, it’s right now.
           </p>
           <p className="text-white/80 text-sm">
-            Pick your age and optional time of birth to get precise stats, or set up your device for
-            quick access from your home screen.
+            Enter your Personal Info (birth date/time and locations) to unlock your Birth Chart and precise stats,
+            or set up your device for quick access from your home screen.
           </p>
           <div className="space-y-3 mt-2">
             <Link
               href="/age"
               className="block w-full text-center bg-black text-white border border-white rounded-lg py-2 hover:bg-black/90"
             >
-              Select Age
+              Open Personal Info
             </Link>
             <Link
               href="/device"

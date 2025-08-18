@@ -5,6 +5,7 @@ import BackButton from "@/components/BackButton";
 import { useTimerStore } from "@/store/timerStore";
 import { useEffect, useMemo, useState } from "react";
 import * as Astronomy from "astronomy-engine";
+import { useRouter } from "next/navigation";
 
 function toDateOnlyString(d) {
 	const y = d.getFullYear();
@@ -47,6 +48,7 @@ function computeSunSign(date) {
 }
 
 export default function BirthChartPage() {
+	const router = useRouter();
 	const store = useTimerStore();
 	const [hydrated, setHydrated] = useState(false);
 
@@ -151,8 +153,17 @@ export default function BirthChartPage() {
 										<div className="text-lg text-accent">{ascendant || '—'}</div>
 									</div>
 								</div>
-								<p className="text-xs text-white/60">We use your location and exact time to compute a precise chart. Full planetary positions will be added next.</p>
-								<div className="text-xs text-white/60">Update your info in <Link className="underline" href="/age">Personal Info</Link>.</div>
+																<p className="text-xs text-white/60">We use your location and exact time to compute a precise chart. Full planetary positions will be added next.</p>
+																<div className="text-xs text-white/60">Update your info in <Link className="underline" href="/age">Personal Info</Link>.</div>
+																<div className="pt-2">
+																	<button
+																		onClick={() => router.push('/')}
+																		className="w-full bg-black text-white border border-white font-medium rounded-lg py-2 transition hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
+																		disabled={!birthLocal || !store.birthCity || !store.birthUtcOffsetSeconds}
+																	>
+																		Go to Timer
+																	</button>
+																</div>
 							</section>
 						</>
 					)}
