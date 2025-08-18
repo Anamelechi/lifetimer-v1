@@ -16,11 +16,11 @@ export default function IOSInstructionsPage() {
           <ol className="list-decimal list-inside space-y-2 text-white/90">
             <li>Open this app in Safari.</li>
             <li>Tap the Share button (the square with an up arrow).</li>
-            <li>Scroll down and tap "Add to Home Screen".</li>
-            <li>Optionally rename, then tap "Add".</li>
+            <li>Scroll down and tap &quot;Add to Home Screen&quot;.</li>
+            <li>Optionally rename, then tap &quot;Add&quot;.</li>
           </ol>
           <p className="text-white/70 text-sm">
-            Tip: If you don't see the option, ensure you're using Safari (not inside another in-app browser),
+            Tip: If you don&apos;t see the option, ensure you&apos;re using Safari (not inside another in-app browser),
             and that the site is reachable over HTTPS.
           </p>
           <div className="flex items-center justify-between mt-2">

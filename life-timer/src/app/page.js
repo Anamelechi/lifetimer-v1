@@ -95,6 +95,8 @@ function HomeContent() {
     setMounted(true);
   }, []);
 
+  // Intentionally depend on nowTick to update every second
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const live = useMemo(
     () => (mounted && birthDate ? diffSince(new Date(birthDate)) : null),
     [mounted, birthDate, nowTick]
@@ -115,7 +117,8 @@ function HomeContent() {
   const diff = demo ? demoData : live;
 
   // Additional breakdowns per request
-  const now = useMemo(() => (mounted ? new Date() : null), [mounted, nowTick]);
+  // Compute current time directly; ties to nowTick via dependent computations
+  const now = mounted ? new Date() : null;
   const startOfDay = useMemo(
     () => (now ? new Date(now.getFullYear(), now.getMonth(), now.getDate()) : null),
     [now]
