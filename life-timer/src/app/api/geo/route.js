@@ -1,6 +1,58 @@
 export const dynamic = 'force-dynamic';
 
-// Simple geocoding + timezone lookup via Open-Meteo public APIs
+// Helper: fetch with timeout
+async function fetchWithTimeout(url, opts = {}, timeoutMs = 10000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...opts, signal: ctrl.signal });
+    return res;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+// Helper: offset at given UTC instant for an IANA zone
+function offsetSecondsAtUtc(iana, dateUtc) {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone: iana,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  });
+  const parts = dtf.formatToParts(dateUtc);
+  const get = (t) => Number(parts.find(p => p.type === t)?.value || 0);
+  const y = get('year');
+  const m = get('month');
+  const d = get('day');
+  const hh = get('hour');
+  const mm = get('minute');
+  const ss = get('second');
+  const asUtc = Date.UTC(y, m - 1, d, hh, mm, ss);
+  return Math.round((asUtc - dateUtc.getTime()) / 1000);
+}
+
+// Helper: given local wall time ISO (YYYY-MM-DDTHH:mm:ss) in IANA zone, compute offset seconds via fixed-point iteration
+function offsetSecondsAtLocal(iana, atLocalIso) {
+  try {
+    const [datePart, timePart = '00:00:00'] = atLocalIso.split('T');
+    const [y, m, d] = datePart.split('-').map(n => parseInt(n, 10));
+    const [hh, mm, ss] = timePart.split(':').map(n => parseInt(n, 10));
+    const wallUtcBase = Date.UTC(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, ss || 0);
+    let utcMs = wallUtcBase;
+    for (let i = 0; i < 5; i++) {
+      const off = offsetSecondsAtUtc(iana, new Date(utcMs));
+      const nextUtc = wallUtcBase - off * 1000;
+      if (Math.abs(nextUtc - utcMs) < 1000) return off;
+      utcMs = nextUtc;
+    }
+    return offsetSecondsAtUtc(iana, new Date(utcMs));
+  } catch {
+    return null;
+  }
+}
+
+// Simple geocoding + timezone lookup via Open-Meteo geocoding and local Intl offset calc
 // GET /api/geo?city=Rome&country=Italy&at=1990-05-01T12:00
 export async function GET(req) {
   try {
@@ -13,8 +65,8 @@ export async function GET(req) {
     // Use Open-Meteo geocoding to resolve lat/lon and timezone
     const q = country ? `${city}, ${country}` : city;
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=en&format=json`;
-    const geoRes = await fetch(geoUrl, { cache: 'no-store' });
-    if (!geoRes.ok) throw new Error('geocoding failed');
+    const geoRes = await fetchWithTimeout(geoUrl, { cache: 'no-store' }, 8000);
+    if (!geoRes.ok) return new Response(JSON.stringify({ error: 'geocoding_failed' }), { status: geoRes.status });
     const geo = await geoRes.json();
     const first = geo?.results?.[0];
     if (!first) return new Response(JSON.stringify({ error: 'not_found' }), { status: 404 });
@@ -23,22 +75,22 @@ export async function GET(req) {
     const longitude = first.longitude;
     const timezone = first.timezone; // IANA name
 
-    // Query Open-Meteo timezone endpoint to get UTC offset seconds (supports optional time param)
-    const tzUrl = new URL('https://api.open-meteo.com/v1/timezone');
-    tzUrl.searchParams.set('latitude', String(latitude));
-    tzUrl.searchParams.set('longitude', String(longitude));
-    if (at) tzUrl.searchParams.set('time', at);
-
-    const tzRes = await fetch(tzUrl, { cache: 'no-store' });
-    if (!tzRes.ok) throw new Error('timezone failed');
-    const tz = await tzRes.json();
+    // Compute utc offset seconds locally using Intl for the requested time
+    let utcOffsetSeconds = null;
+    if (timezone) {
+      if (at) {
+        utcOffsetSeconds = offsetSecondsAtLocal(timezone, at);
+      } else {
+        utcOffsetSeconds = offsetSecondsAtUtc(timezone, new Date());
+      }
+    }
 
     return new Response(
       JSON.stringify({
         latitude,
         longitude,
-        timezone: tz?.timezone || timezone,
-        utcOffsetSeconds: tz?.utc_offset_seconds ?? null,
+        timezone,
+        utcOffsetSeconds,
         city: first.name,
         country: first.country,
         admin1: first.admin1 || null,
