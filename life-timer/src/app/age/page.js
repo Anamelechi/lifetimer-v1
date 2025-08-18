@@ -39,6 +39,7 @@ export default function PersonalInfoPage() {
 
   const [dateStr, setDateStr] = useState("");
   const [timeStr, setTimeStr] = useState("00:00");
+  const [fullName, setFullName] = useState("");
 
   const [birthCountry, setBirthCountry] = useState("");
   const [birthCity, setBirthCity] = useState("");
@@ -54,8 +55,10 @@ export default function PersonalInfoPage() {
   useEffect(() => {
     const savedDate = localStorage.getItem("life-timer:birthDate");
     const savedTime = localStorage.getItem("life-timer:birthTime");
+  const savedName = localStorage.getItem("life-timer:fullName");
     if (savedDate) setDateStr(savedDate);
     if (savedTime) setTimeStr(savedTime);
+  if (savedName) setFullName(savedName);
     if (store.birthDate && !savedDate) {
       const d = new Date(store.birthDate);
       setDateStr(toDateOnlyString(d));
@@ -121,6 +124,10 @@ export default function PersonalInfoPage() {
   };
 
   const onSave = async () => {
+  // Save name first
+  store.setFullName(fullName || "");
+  localStorage.setItem("life-timer:fullName", fullName || "");
+
     const d = combineDateTime(dateStr, timeStr || "00:00");
     if (d && !isNaN(d)) {
       store.setBirthDate(d);
@@ -181,6 +188,15 @@ export default function PersonalInfoPage() {
         </div>
 
         <div className="glass rounded-2xl p-6 space-y-6">
+          <section className="space-y-3">
+            <h2 className="text-white/90 font-medium">About You</h2>
+            <label className="block text-sm text-white/80">
+              Full Name
+              <input type="text" placeholder="e.g., Ada Lovelace" className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none"
+                value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            </label>
+          </section>
+
           <section className="space-y-3">
             <h2 className="text-white/90 font-medium">Birth Details</h2>
             <div className="grid grid-cols-2 gap-3">

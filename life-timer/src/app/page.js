@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
@@ -48,7 +48,7 @@ export default function Home() {
 function HomeContent() {
   const search = useSearchParams();
   const router = useRouter();
-  const { birthDate, setBirthDate } = useTimerStore();
+  const { birthDate, setBirthDate, fullName, setFullName } = useTimerStore();
   const [nowTick, setNowTick] = useState(0);
   const [fact, setFact] = useState(null);
   const [loadingFact, setLoadingFact] = useState(false);
@@ -61,7 +61,9 @@ function HomeContent() {
   useEffect(() => {
     const savedDate = localStorage.getItem("life-timer:birthDate");
     const savedTime = localStorage.getItem("life-timer:birthTime");
+  const savedName = localStorage.getItem("life-timer:fullName");
     if (savedDate) setBirthDate(combineDateTime(savedDate, savedTime || "00:00"));
+  if (savedName) setFullName(savedName);
   }, [setBirthDate]);
 
   // On first visit without birthDate, go to onboarding welcome
@@ -208,12 +210,14 @@ function HomeContent() {
       <main className="w-full max-w-md">
         {/* Top bar with menu */}
         <div className="py-2 flex items-center justify-between">
-          <h1 className="text-base tracking-wide text-white/90">Life Timer</h1>
-          <div className="text-sm flex items-center gap-3 text-white/70">
-            <Link href="/device/welcome" className="hover:text-white">Welcome</Link>
-            <Link href="/device" className="hover:text-white">Device</Link>
-            <Link href="/age" className="hover:text-white">Personal Info</Link>
-            <Link href="/birth-chart" className="hover:text-white">Birth Chart</Link>
+          <div>
+            <h1 className="text-base tracking-wide text-white/90">Life Timer</h1>
+            {fullName && (
+              <p className="text-xs text-white/60 mt-0.5">Welcome back, {fullName.split(" ")[0]}.</p>
+            )}
+          </div>
+          <div className="relative">
+            <MenuDropdown />
           </div>
         </div>
 
@@ -266,6 +270,53 @@ function HomeContent() {
           </div>
         )}
       </main>
+    </div>
+  );
+}
+function MenuDropdown() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e) => {
+      const el = ref.current;
+      if (!el) return;
+      if (!el.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="text-sm text-white/80" ref={ref}>
+      <button
+        className="border border-white/20 rounded-md px-3 py-2 min-h-[40px] min-w-[72px] hover:bg-white/10 active:bg-white/15"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Open menu"
+      >
+        Menu
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-48 max-w-[80vw] rounded-lg bg-black/85 backdrop-blur border border-white/10 shadow-xl z-30">
+          <nav className="py-1.5 max-h-[60vh] overflow-auto" onClick={() => setOpen(false)}>
+            <Link href="/device/welcome" className="block px-3 py-2.5 hover:bg-white/10">Welcome</Link>
+            <Link href="/device" className="block px-3 py-2.5 hover:bg-white/10">Device</Link>
+            <Link href="/age" className="block px-3 py-2.5 hover:bg-white/10">Personal Info</Link>
+            <Link href="/birth-chart" className="block px-3 py-2.5 hover:bg-white/10">Birth Chart</Link>
+          </nav>
+        </div>
+      )}
     </div>
   );
 }

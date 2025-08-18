@@ -12,6 +12,8 @@ A living log to carry context across chats/devices. Use this as the source of tr
 - Runtime: Docker (dev and prod compose), PWA with offline page
 
 ## Decision and change log (high level)
+- 2025-08-18: code red 2
+  - Files: life-timer/COPILOT_NOTES.md, life-timer/Dockerfile, life-timer/docker-compose.apache.yml, life-timer/next.config.mjs
 - 2025-08-18: code red
   - Files: .github/workflows/ci-cd.yml, life-timer/COPILOT_NOTES.md, life-timer/docker-compose.apache.yml
 - 2025-08-18: deploy fix 2

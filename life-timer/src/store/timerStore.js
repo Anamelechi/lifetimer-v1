@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 
 export const useTimerStore = create((set) => ({
+  // Personal
+  fullName: '',
+  setFullName: (name) => set({ fullName: name }),
+
   // Core birth date/time (Date in local time)
   birthDate: null,
   setBirthDate: (date) => set({ birthDate: date }),
