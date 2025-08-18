@@ -11,7 +11,8 @@ const withPWA = require('next-pwa')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-	// Add any Next.js config here
+	// Use a custom build directory to avoid local .next permission conflicts
+	distDir: 'build',
 };
 
 // Export PWA-wrapped config

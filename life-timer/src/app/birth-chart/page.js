@@ -4,6 +4,7 @@ import Link from "next/link";
 import BackButton from "@/components/BackButton";
 import { useTimerStore } from "@/store/timerStore";
 import { useEffect, useMemo, useState } from "react";
+import * as Astronomy from "astronomy-engine";
 
 function toDateOnlyString(d) {
 	const y = d.getFullYear();
@@ -63,6 +64,25 @@ export default function BirthChartPage() {
 		return new Date(ms).toISOString();
 	}, [birthLocal, store.birthUtcOffsetSeconds]);
 
+		// Moon ecliptic longitude and sign using Astronomy Engine
+		const moonSign = useMemo(() => {
+			try {
+				if (!birthUtcIso || store.birthLat == null || store.birthLon == null) return null;
+				const date = new Date(birthUtcIso);
+				// Apparent ecliptic longitude of the Moon (geocentric)
+				const ecl = Astronomy.EclipticLongitude(Astronomy.Body.Moon, date);
+				const lon = ((ecl + 360) % 360);
+				const signs = [
+					"Aries","Taurus","Gemini","Cancer","Leo","Virgo",
+					"Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"
+				];
+				const idx = Math.floor(lon / 30) % 12;
+				return signs[idx];
+			} catch {
+				return null;
+			}
+		}, [birthUtcIso, store.birthLat, store.birthLon]);
+
 	return (
 		<div className="min-h-screen flex items-start justify-center p-6">
 			<main className="w-full max-w-md">
@@ -92,10 +112,10 @@ export default function BirthChartPage() {
 										<div className="text-xs text-white/60 tracking-widest">SUN SIGN</div>
 										<div className="text-lg text-accent">{sunSign || '—'}</div>
 									</div>
-									<div className="panel rounded-xl p-4">
-										<div className="text-xs text-white/60 tracking-widest">MOON SIGN</div>
-										<div className="text-lg text-white/80">Coming soon</div>
-									</div>
+														<div className="panel rounded-xl p-4">
+															<div className="text-xs text-white/60 tracking-widest">MOON SIGN</div>
+															<div className="text-lg text-accent">{moonSign || '—'}</div>
+														</div>
 									<div className="panel rounded-xl p-4 col-span-2">
 										<div className="text-xs text-white/60 tracking-widest">ASCENDANT (RISING)</div>
 										<div className="text-lg text-white/80">Coming soon</div>
