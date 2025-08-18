@@ -89,6 +89,7 @@ jobs:
       - name: Remote deploy
         uses: appleboy/ssh-action@v1.2.0
         env:
+          COMPOSE_FILE: ${{ secrets.COMPOSE_FILE }}
           REGISTRY: ${{ env.REGISTRY }}
           IMAGE_NAME: ${{ needs.ci.outputs.image }}
           IMAGE_TAG: ${{ github.sha }}
@@ -99,7 +100,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          envs: REGISTRY,IMAGE_NAME,IMAGE_TAG,GHCR_USERNAME,GHCR_TOKEN,DEPLOY_PATH
+          envs: COMPOSE_FILE,REGISTRY,IMAGE_NAME,IMAGE_TAG,GHCR_USERNAME,GHCR_TOKEN,DEPLOY_PATH
           script: |
             set -eu
             if [ -z "${DEPLOY_PATH}" ]; then
