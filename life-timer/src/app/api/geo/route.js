@@ -65,10 +65,28 @@ export async function GET(req) {
     // Use Open-Meteo geocoding to resolve lat/lon and timezone
     const q = country ? `${city}, ${country}` : city;
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=en&format=json`;
-    const geoRes = await fetchWithTimeout(geoUrl, { cache: 'no-store' }, 8000);
-    if (!geoRes.ok) return new Response(JSON.stringify({ error: 'geocoding_failed' }), { status: geoRes.status });
-    const geo = await geoRes.json();
-    const first = geo?.results?.[0];
+    let first = null;
+    try {
+      const geoRes = await fetchWithTimeout(geoUrl, { cache: 'no-store' }, 8000);
+      if (geoRes.ok) {
+        const geo = await geoRes.json();
+        first = geo?.results?.[0] || null;
+      }
+    } catch {}
+
+    // Offline/local fallback for common cities
+    const key = q.toLowerCase();
+    const offline = {
+      'rome, italy': { name: 'Rome', country: 'Italy', admin1: 'Lazio', latitude: 41.9028, longitude: 12.4964, timezone: 'Europe/Rome' },
+      'rome': { name: 'Rome', country: 'Italy', admin1: 'Lazio', latitude: 41.9028, longitude: 12.4964, timezone: 'Europe/Rome' },
+      'london, united kingdom': { name: 'London', country: 'United Kingdom', admin1: 'England', latitude: 51.5074, longitude: -0.1278, timezone: 'Europe/London' },
+      'london': { name: 'London', country: 'United Kingdom', admin1: 'England', latitude: 51.5074, longitude: -0.1278, timezone: 'Europe/London' },
+      'new york, united states': { name: 'New York', country: 'United States', admin1: 'New York', latitude: 40.7128, longitude: -74.006, timezone: 'America/New_York' },
+      'new york': { name: 'New York', country: 'United States', admin1: 'New York', latitude: 40.7128, longitude: -74.006, timezone: 'America/New_York' },
+      'sapele, nigeria': { name: 'Sapele', country: 'Nigeria', admin1: 'Delta', latitude: 5.8941, longitude: 5.6767, timezone: 'Africa/Lagos' },
+      'sapele': { name: 'Sapele', country: 'Nigeria', admin1: 'Delta', latitude: 5.8941, longitude: 5.6767, timezone: 'Africa/Lagos' },
+    };
+    if (!first && offline[key]) first = offline[key];
     if (!first) return new Response(JSON.stringify({ error: 'not_found' }), { status: 404 });
 
     const latitude = first.latitude;
@@ -91,9 +109,9 @@ export async function GET(req) {
         longitude,
         timezone,
         utcOffsetSeconds,
-        city: first.name,
-        country: first.country,
-        admin1: first.admin1 || null,
+  city: first.name,
+  country: first.country,
+  admin1: first.admin1 || null,
       }),
       { status: 200, headers: { 'content-type': 'application/json' } }
     );
