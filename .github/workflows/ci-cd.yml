@@ -13,14 +13,19 @@ concurrency:
 
 permissions:
   contents: read
+  packages: write
 
 env:
   NODE_VERSION: '20.x'
   WORKING_DIR: life-timer
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/life-timer
 
 jobs:
   ci:
-    name: Lint and build
+    name: Lint, build, and push image
+    outputs:
+      image: ${{ steps.lower.outputs.image }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -28,6 +33,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Derive lowercase image name
+        id: lower
+        run: |
+          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "owner_lower=$OWNER_LOWER" >> $GITHUB_OUTPUT
+          echo "image=ghcr.io/${OWNER_LOWER}/life-timer" >> $GITHUB_OUTPUT
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -45,15 +57,28 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Upload build artifact (PRs only)
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
-          name: next-build
-          path: |
-            life-timer/.next
-            life-timer/public
-          retention-days: 7
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.WORKING_DIR }}
+          file: ${{ env.WORKING_DIR }}/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.lower.outputs.image }}:${{ github.sha }}
+            ${{ steps.lower.outputs.image }}:latest
 
   deploy:
     name: Deploy to server
@@ -61,34 +86,22 @@ jobs:
     needs: ci
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Create deployment bundle
-        run: |
-          tar --exclude='.next' --exclude='node_modules' -czf life-timer.tar.gz -C life-timer .
-
-      - name: Copy bundle to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          source: "life-timer.tar.gz"
-          target: "${{ secrets.DEPLOY_PATH }}/tmp"
-
       - name: Remote deploy
         uses: appleboy/ssh-action@v1.2.0
         env:
-          COMPOSE_FILE: ${{ secrets.COMPOSE_FILE }}
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ needs.ci.outputs.image }}
+          IMAGE_TAG: ${{ github.sha }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          envs: COMPOSE_FILE
+          envs: REGISTRY,IMAGE_NAME,IMAGE_TAG,GHCR_USERNAME,GHCR_TOKEN,DEPLOY_PATH
           script: |
             set -eu
-            DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
             if [ -z "${DEPLOY_PATH}" ]; then
               echo "DEPLOY_PATH secret is not set" >&2
               exit 1
@@ -101,10 +114,6 @@ jobs:
             echo "Working dir: $(pwd)"
             echo "Listing top-level files:"
             ls -la
-            mkdir -p tmp app
-            # Extract the application into the app/ folder
-            tar -xzf tmp/life-timer.tar.gz -C app
-            rm -f tmp/life-timer.tar.gz
 
             echo "Using docker compose (ignoring deploy.sh per CI config)"
             # Select docker compose CLI
@@ -117,13 +126,12 @@ jobs:
               exit 1
             fi
 
-            # Locate a compose file: prefer secret, else root, else app
+            # Choose compose file to use
             CHOICES=(
               "${COMPOSE_FILE:-}"
               "${DEPLOY_PATH}/docker-compose.yml"
-              "${DEPLOY_PATH}/docker-compose.apache.yml"
-              "${DEPLOY_PATH}/app/docker-compose.yml"
-              "${DEPLOY_PATH}/app/docker-compose.apache.yml"
+              "${DEPLOY_PATH}/docker-compose.prod.yml"
+              "${DEPLOY_PATH}/life-timer/docker-compose.prod.yml"
             )
             COMPOSE_PATH=""
             for c in "${CHOICES[@]}"; do
@@ -155,8 +163,14 @@ jobs:
             fi
             echo "Using env file: $ENV_FILE"; ls -ld "$ENV_FILE"
 
-            # Build and restart services with explicit env file and chosen compose file
+            # Login to GHCR to pull the image
+            echo "$GHCR_TOKEN" | docker login "$REGISTRY" -u "$GHCR_USERNAME" --password-stdin
+
+            # Export image info for compose
+            export IMAGE_REPO="$IMAGE_NAME"
+            export IMAGE_TAG="$IMAGE_TAG"
+
+            # Pull and restart services with explicit env file and chosen compose file
             ${DCMD} -f "$COMPOSE_BASE" --env-file "$ENV_FILE" pull || true
-            ${DCMD} -f "$COMPOSE_BASE" --env-file "$ENV_FILE" build
-            ${DCMD} -f "$COMPOSE_BASE" --env-file "$ENV_FILE" up -d
+            ${DCMD} -f "$COMPOSE_BASE" --env-file "$ENV_FILE" up -d --force-recreate
             docker system prune -f || true

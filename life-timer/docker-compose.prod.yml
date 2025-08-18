@@ -1,8 +1,7 @@
+version: "3.9"
 services:
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: "${IMAGE_REPO:-ghcr.io/example/life-timer}:${IMAGE_TAG:-latest}"
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
@@ -10,7 +9,7 @@ services:
       - "3000:3000"
     command: npm start
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', r => process.exit(r.statusCode===200?0:1)).on('error', () => process.exit(1))"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000', r => process.exit(r.statusCode===200?0:1)).on('error', () => process.exit(1))\""]
       interval: 30s
       timeout: 5s
       retries: 5
