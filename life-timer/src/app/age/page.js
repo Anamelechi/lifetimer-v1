@@ -74,6 +74,26 @@ export default function PersonalInfoPage() {
     return `${dateStr}T${t}:00`;
   }, [dateStr, timeStr]);
 
+  // Debounced auto-resolve for birth when date/city change
+  useEffect(() => {
+    if (!birthCity || !birthAtISO) return;
+    const t = setTimeout(() => {
+      resolveBirth();
+    }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [birthCity, birthCountry, birthAtISO]);
+
+  // Debounced auto-resolve for current when city changes
+  useEffect(() => {
+    if (!currentCity) return;
+    const t = setTimeout(() => {
+      resolveCurrent();
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCity, currentCountry]);
+
   const resolveBirth = async () => {
     if (!birthCity) return;
     setBirthResolving(true);
@@ -100,33 +120,45 @@ export default function PersonalInfoPage() {
     }
   };
 
-  const onSave = () => {
+  const onSave = async () => {
     const d = combineDateTime(dateStr, timeStr || "00:00");
     if (d && !isNaN(d)) {
       store.setBirthDate(d);
       localStorage.setItem("life-timer:birthDate", dateStr);
       localStorage.setItem("life-timer:birthTime", timeStr || "00:00");
     }
+    // Ensure we have timezone/offset resolved for birth
+    let birthInfo = birthResolved;
+    if (!birthInfo || birthInfo.utcOffsetSeconds == null) {
+      try {
+        birthInfo = await fetchGeo(birthCity, birthCountry, birthAtISO || undefined);
+      } catch {}
+    }
     // Save birth location
     store.setBirthLocation({
       birthCountry,
       birthCity,
-      birthLat: birthResolved?.latitude ?? null,
-      birthLon: birthResolved?.longitude ?? null,
-      birthTimeZone: birthResolved?.timezone ?? '',
-      birthUtcOffsetSeconds: birthResolved?.utcOffsetSeconds ?? null,
+      birthLat: birthInfo?.latitude ?? null,
+      birthLon: birthInfo?.longitude ?? null,
+      birthTimeZone: birthInfo?.timezone ?? '',
+      birthUtcOffsetSeconds: birthInfo?.utcOffsetSeconds ?? null,
     });
     localStorage.setItem("life-timer:birthCountry", birthCountry || "");
     localStorage.setItem("life-timer:birthCity", birthCity || "");
 
+    // Ensure we have current offset (optional)
+    let currInfo = currentResolved;
+    if ((!currInfo || currInfo.utcOffsetSeconds == null) && currentCity) {
+      try { currInfo = await fetchGeo(currentCity, currentCountry, undefined); } catch {}
+    }
     // Save current location
     store.setCurrentLocation({
       currentCountry,
       currentCity,
-      currentLat: currentResolved?.latitude ?? null,
-      currentLon: currentResolved?.longitude ?? null,
-      currentTimeZone: currentResolved?.timezone ?? '',
-      currentUtcOffsetSeconds: currentResolved?.utcOffsetSeconds ?? null,
+      currentLat: currInfo?.latitude ?? null,
+      currentLon: currInfo?.longitude ?? null,
+      currentTimeZone: currInfo?.timezone ?? '',
+      currentUtcOffsetSeconds: currInfo?.utcOffsetSeconds ?? null,
     });
     localStorage.setItem("life-timer:currentCountry", currentCountry || "");
     localStorage.setItem("life-timer:currentCity", currentCity || "");

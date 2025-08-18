@@ -238,40 +238,14 @@ function HomeContent() {
           <Stat label="SECONDS" value={mounted ? secondsSinceMinuteStart : null} full />
         </div>
 
-        {/* Hidden inputs/fact in demo */}
         {!demo && (
           <div className="mt-8 space-y-4">
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                onChange={onPickDate}
-                className="bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none"
-                aria-label="Pick birth date"
-                value={birthDate ? toDateOnlyString(new Date(birthDate)) : ""}
-              />
-              <input
-                type="time"
-                step="60"
-                onChange={onPickTime}
-                className="bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none"
-                aria-label="Pick time of birth"
-                value={birthDate ? toTimeHMString(new Date(birthDate)) : ""}
-                placeholder="00:00"
-              />
-            </div>
-
             <section className="glass rounded-2xl p-6">
-              <h2 className="text-lg font-semibold mb-3">Random Fact</h2>
-              {!birthDate && <p className="text-white/70">Pick your birth date to fetch a fact.</p>}
-              {birthDate && (
-                <div>
-                  {loadingFact && <p className="text-white/70">Fetching a fun fact…</p>}
-                  {fact && <p className="text-white/90 leading-relaxed">{fact}</p>}
-                  {!loadingFact && !fact && (
-                    <p className="text-white/70">No fact available offline. Try again online.</p>
-                  )}
-                </div>
-              )}
+              <h2 className="text-lg font-semibold mb-3">Get Started</h2>
+              <p className="text-white/80">Add your details to unlock your Birth Chart and personalized facts.</p>
+              <div className="mt-4">
+                <Link href="/age" className="bg-black text-white border border-white font-medium rounded-lg px-4 py-2 inline-block hover:bg-black/90">Open Personal Info</Link>
+              </div>
             </section>
           </div>
         )}

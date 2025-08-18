@@ -25,7 +25,7 @@ export default function IOSInstructionsPage() {
           </p>
           <div className="flex items-center justify-between mt-2">
             <Link href="/device" className="text-accent">Back</Link>
-            <Link href="/age" className="bg-black text-white border border-white font-medium rounded-lg px-3 py-1.5 transition hover:bg-black/90">Continue</Link>
+            <Link href="/age" className="bg-black text-white border border-white font-medium rounded-lg px-3 py-1.5 transition hover:bg-black/90">Open Personal Info</Link>
           </div>
         </div>
       </main>

@@ -23,7 +23,8 @@ COPY package.json ./
 COPY next.config.mjs ./
 COPY public ./public
 # Copy the production build output from the builder stage (not the host)
-COPY --from=builder /app/.next ./\.next
+# Copy production build output (respecting distDir = 'build')
+COPY --from=builder /app/build ./build
 
 EXPOSE 3000
 CMD ["npm", "start"]

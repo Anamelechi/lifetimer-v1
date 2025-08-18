@@ -81,7 +81,37 @@ export default function BirthChartPage() {
 			} catch {
 				return null;
 			}
-		}, [birthUtcIso, store.birthLat, store.birthLon]);
+				}, [birthUtcIso, store.birthLat, store.birthLon]);
+
+		// Ascendant (rising sign) approximation using local sidereal time and ecliptic geometry
+	const ascendant = useMemo(() => {
+		try {
+			if (!birthUtcIso || store.birthLat == null || store.birthLon == null) return null;
+			const date = new Date(birthUtcIso);
+			// Observer at birthplace
+			const observer = new Astronomy.Observer(store.birthLat, store.birthLon, 0);
+				// Local apparent sidereal time in degrees
+				const gast = Astronomy.SiderealTime(date); // hours at Greenwich
+				const last = ((gast + store.birthLon / 15) % 24) * 15; // degrees at location
+				// Mean obliquity of the ecliptic (approx, modern epoch)
+				const obliq = 23.43928;
+			// Ascendant formula: tan(Asc) = 1/(cos e) * [ -cos L / (sin L * cos e + tan φ * sin e) ]
+			const phi = store.birthLat * Math.PI/180;
+			const L = last * Math.PI/180;
+			const e = obliq * Math.PI/180;
+			const tanAsc = -Math.cos(L) / (Math.sin(L)*Math.cos(e) + Math.tan(phi)*Math.sin(e));
+			let asc = Math.atan(tanAsc) * 180/Math.PI;
+			if (Math.sin(L) < 0) asc += 180;
+			asc = (asc + 360) % 360;
+			const signs = [
+				"Aries","Taurus","Gemini","Cancer","Leo","Virgo",
+				"Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"
+			];
+			return signs[Math.floor(asc/30) % 12];
+		} catch {
+			return null;
+		}
+	}, [birthUtcIso, store.birthLat, store.birthLon]);
 
 	return (
 		<div className="min-h-screen flex items-start justify-center p-6">
@@ -118,7 +148,7 @@ export default function BirthChartPage() {
 														</div>
 									<div className="panel rounded-xl p-4 col-span-2">
 										<div className="text-xs text-white/60 tracking-widest">ASCENDANT (RISING)</div>
-										<div className="text-lg text-white/80">Coming soon</div>
+										<div className="text-lg text-accent">{ascendant || '—'}</div>
 									</div>
 								</div>
 								<p className="text-xs text-white/60">We use your location and exact time to compute a precise chart. Full planetary positions will be added next.</p>

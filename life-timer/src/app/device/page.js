@@ -104,7 +104,7 @@ export default function DeviceSelectionPage() {
             className="w-full mt-6 bg-black text-white border border-white font-medium rounded-lg py-2 transition hover:bg-black/90"
             disabled={!selected}
           >
-      Continue to Age Selection
+  Continue to Personal Info
           </button>
         )}
       </main>
