@@ -240,12 +240,28 @@ function HomeContent() {
 
         {!demo && (
           <div className="mt-8 space-y-4">
+            {!birthDate && (
+              <section className="glass rounded-2xl p-6">
+                <h2 className="text-lg font-semibold mb-3">Get Started</h2>
+                <p className="text-white/80">Add your details to unlock your Birth Chart and personalized facts.</p>
+                <div className="mt-4">
+                  <Link href="/age" className="bg-black text-white border border-white font-medium rounded-lg px-4 py-2 inline-block hover:bg-black/90">Open Personal Info</Link>
+                </div>
+              </section>
+            )}
+
             <section className="glass rounded-2xl p-6">
-              <h2 className="text-lg font-semibold mb-3">Get Started</h2>
-              <p className="text-white/80">Add your details to unlock your Birth Chart and personalized facts.</p>
-              <div className="mt-4">
-                <Link href="/age" className="bg-black text-white border border-white font-medium rounded-lg px-4 py-2 inline-block hover:bg-black/90">Open Personal Info</Link>
-              </div>
+              <h2 className="text-lg font-semibold mb-3">Random Fact</h2>
+              {!birthDate && <p className="text-white/70">Set your birth date in Personal Info to fetch a fact.</p>}
+              {birthDate && (
+                <div>
+                  {loadingFact && <p className="text-white/70">Fetching a fun fact…</p>}
+                  {fact && <p className="text-white/90 leading-relaxed">{fact}</p>}
+                  {!loadingFact && !fact && (
+                    <p className="text-white/70">No fact available right now. Try again later.</p>
+                  )}
+                </div>
+              )}
             </section>
           </div>
         )}
