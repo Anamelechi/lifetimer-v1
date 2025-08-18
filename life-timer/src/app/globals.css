@@ -66,3 +66,16 @@ html, body {
 /* single tick style only; no minor/major */
 
 /* Toggle switch styles removed */
+
+/* Mobile UX: prevent iOS auto-zoom on inputs by using >=16px font size */
+@media (max-width: 640px) {
+  input, select, textarea, button {
+    font-size: 16px !important; /* iOS zooms when <16px */
+  }
+}
+
+/* Smoother scrolling for a native feel */
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}

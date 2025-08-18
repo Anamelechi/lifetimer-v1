@@ -25,10 +25,18 @@ export const metadata = {
     statusBarStyle: "default",
     title: "Life Timer",
   },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport = {
   themeColor: "#0b0f1a",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: 'no',
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }) {
