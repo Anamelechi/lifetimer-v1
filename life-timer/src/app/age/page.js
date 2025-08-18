@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTimerStore } from "@/store/timerStore";
 import BackButton from "@/components/BackButton";
@@ -23,133 +23,195 @@ function combineDateTime(dateStr, timeStr = "00:00") {
   return new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0, 0);
 }
 
-export default function AboutMePage() {
+async function fetchGeo(city, country, atIso) {
+  const params = new URLSearchParams();
+  if (city) params.set("city", city);
+  if (country) params.set("country", country);
+  if (atIso) params.set("at", atIso);
+  const res = await fetch(`/api/geo?${params.toString()}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("geo lookup failed");
+  return res.json();
+}
+
+export default function PersonalInfoPage() {
   const router = useRouter();
-  const {
-    birthDate, setBirthDate,
-    birthCountry, setBirthCountry,
-    birthCity, setBirthCity,
-    currentCountry, setCurrentCountry,
-    currentCity, setCurrentCity,
-  } = useTimerStore();
+  const store = useTimerStore();
+
   const [dateStr, setDateStr] = useState("");
   const [timeStr, setTimeStr] = useState("00:00");
 
+  const [birthCountry, setBirthCountry] = useState("");
+  const [birthCity, setBirthCity] = useState("");
+  const [birthResolved, setBirthResolved] = useState(null);
+  const [birthResolving, setBirthResolving] = useState(false);
+
+  const [currentCountry, setCurrentCountry] = useState("");
+  const [currentCity, setCurrentCity] = useState("");
+  const [currentResolved, setCurrentResolved] = useState(null);
+  const [currentResolving, setCurrentResolving] = useState(false);
+
+  // hydrate from localStorage/store
   useEffect(() => {
-    // hydrate from localStorage if present
-    const savedDate = typeof window !== "undefined" ? localStorage.getItem("life-timer:birthDate") : null;
-    const savedTime = typeof window !== "undefined" ? localStorage.getItem("life-timer:birthTime") : null;
+    const savedDate = localStorage.getItem("life-timer:birthDate");
+    const savedTime = localStorage.getItem("life-timer:birthTime");
     if (savedDate) setDateStr(savedDate);
     if (savedTime) setTimeStr(savedTime);
-    if (birthDate && !savedDate) {
-      const d = new Date(birthDate);
+    if (store.birthDate && !savedDate) {
+      const d = new Date(store.birthDate);
       setDateStr(toDateOnlyString(d));
       setTimeStr(toTimeHMString(d));
     }
-    // hydrate locations
-    const bc = typeof window !== "undefined" ? localStorage.getItem("life-timer:birthCountry") : null;
-    const bct = typeof window !== "undefined" ? localStorage.getItem("life-timer:birthCity") : null;
-    const cc = typeof window !== "undefined" ? localStorage.getItem("life-timer:currentCountry") : null;
-    const cct = typeof window !== "undefined" ? localStorage.getItem("life-timer:currentCity") : null;
-    if (bc) setBirthCountry(bc);
-    if (bct) setBirthCity(bct);
-    if (cc) setCurrentCountry(cc);
-    if (cct) setCurrentCity(cct);
-  }, [birthDate, setBirthCountry, setBirthCity, setCurrentCountry, setCurrentCity]);
+    // locations
+    setBirthCountry(store.birthCountry || localStorage.getItem("life-timer:birthCountry") || "");
+    setBirthCity(store.birthCity || localStorage.getItem("life-timer:birthCity") || "");
+    setCurrentCountry(store.currentCountry || localStorage.getItem("life-timer:currentCountry") || "");
+    setCurrentCity(store.currentCity || localStorage.getItem("life-timer:currentCity") || "");
+  }, []);
+
+  const birthAtISO = useMemo(() => {
+    if (!dateStr) return null;
+    const t = timeStr || "00:00";
+    return `${dateStr}T${t}:00`;
+  }, [dateStr, timeStr]);
+
+  const resolveBirth = async () => {
+    if (!birthCity) return;
+    setBirthResolving(true);
+    try {
+      const data = await fetchGeo(birthCity, birthCountry, birthAtISO || undefined);
+      setBirthResolved(data);
+    } catch (e) {
+      setBirthResolved(null);
+    } finally {
+      setBirthResolving(false);
+    }
+  };
+
+  const resolveCurrent = async () => {
+    if (!currentCity) return;
+    setCurrentResolving(true);
+    try {
+      const data = await fetchGeo(currentCity, currentCountry, undefined);
+      setCurrentResolved(data);
+    } catch (e) {
+      setCurrentResolved(null);
+    } finally {
+      setCurrentResolving(false);
+    }
+  };
 
   const onSave = () => {
     const d = combineDateTime(dateStr, timeStr || "00:00");
-    if (!d || isNaN(d)) return;
-    setBirthDate(d);
-    if (typeof window !== "undefined") {
+    if (d && !isNaN(d)) {
+      store.setBirthDate(d);
       localStorage.setItem("life-timer:birthDate", dateStr);
       localStorage.setItem("life-timer:birthTime", timeStr || "00:00");
-      localStorage.setItem("life-timer:birthCountry", birthCountry || "");
-      localStorage.setItem("life-timer:birthCity", birthCity || "");
-      localStorage.setItem("life-timer:currentCountry", currentCountry || "");
-      localStorage.setItem("life-timer:currentCity", currentCity || "");
     }
-    router.push("/");
+    // Save birth location
+    store.setBirthLocation({
+      birthCountry,
+      birthCity,
+      birthLat: birthResolved?.latitude ?? null,
+      birthLon: birthResolved?.longitude ?? null,
+      birthTimeZone: birthResolved?.timezone ?? '',
+      birthUtcOffsetSeconds: birthResolved?.utcOffsetSeconds ?? null,
+    });
+    localStorage.setItem("life-timer:birthCountry", birthCountry || "");
+    localStorage.setItem("life-timer:birthCity", birthCity || "");
+
+    // Save current location
+    store.setCurrentLocation({
+      currentCountry,
+      currentCity,
+      currentLat: currentResolved?.latitude ?? null,
+      currentLon: currentResolved?.longitude ?? null,
+      currentTimeZone: currentResolved?.timezone ?? '',
+      currentUtcOffsetSeconds: currentResolved?.utcOffsetSeconds ?? null,
+    });
+    localStorage.setItem("life-timer:currentCountry", currentCountry || "");
+    localStorage.setItem("life-timer:currentCity", currentCity || "");
+
+    router.push("/birth-chart");
   };
+
+  const currentOffsetHours = useMemo(() => {
+    const s = currentResolved?.utcOffsetSeconds ?? store.currentUtcOffsetSeconds;
+    return s != null ? (s / 3600) : null;
+  }, [currentResolved, store.currentUtcOffsetSeconds]);
 
   return (
     <div className="min-h-screen flex items-start justify-center p-6">
       <main className="w-full max-w-md">
         <div className="flex items-center justify-between mb-4">
           <BackButton fallback="/device/welcome" />
-          <h1 className="text-xl font-semibold">About Me</h1>
+          <h1 className="text-xl font-semibold">Personal Info</h1>
           <span className="w-[64px]" />
         </div>
-        <div className="glass rounded-2xl p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block text-sm text-white/80 col-span-2">
-              Birth country
-              <input
-                type="text"
-                className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none"
-                value={birthCountry}
-                onChange={(e) => setBirthCountry(e.target.value)}
-                placeholder="e.g., Nigeria"
-              />
-            </label>
-            <label className="block text-sm text-white/80 col-span-2">
-              Birth city
-              <input
-                type="text"
-                className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none"
-                value={birthCity}
-                onChange={(e) => setBirthCity(e.target.value)}
-                placeholder="e.g., Lagos"
-              />
-            </label>
-          </div>
-          <label className="block text-sm text-white/80">
-            Date
-            <input
-              type="date"
-              className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none"
-              value={dateStr}
-              onChange={(e) => setDateStr(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm text-white/80">
-            Time (optional)
-            <input
-              type="time"
-              step="60"
-              className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none"
-              value={timeStr}
-              onChange={(e) => setTimeStr(e.target.value)}
-            />
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block text-sm text-white/80 col-span-2">
-              Current country
-              <input
-                type="text"
-                className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none"
-                value={currentCountry}
-                onChange={(e) => setCurrentCountry(e.target.value)}
-                placeholder="e.g., United Kingdom"
-              />
-            </label>
-            <label className="block text-sm text-white/80 col-span-2">
-              Current city
-              <input
-                type="text"
-                className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none"
-                value={currentCity}
-                onChange={(e) => setCurrentCity(e.target.value)}
-                placeholder="e.g., London"
-              />
-            </label>
-          </div>
-          <button
-            onClick={onSave}
-            className="w-full bg-black text-white border border-white font-medium rounded-lg py-2 transition hover:bg-black/90"
-            disabled={!dateStr}
-          >
-            Continue
+
+        <div className="glass rounded-2xl p-6 space-y-6">
+          <section className="space-y-3">
+            <h2 className="text-white/90 font-medium">Birth Details</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-sm text-white/80 col-span-1">
+                Date
+                <input type="date" className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none" value={dateStr} onChange={(e) => setDateStr(e.target.value)} />
+              </label>
+              <label className="block text-sm text-white/80 col-span-1">
+                Time (optional)
+                <input type="time" step="60" className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none" value={timeStr} onChange={(e) => setTimeStr(e.target.value)} />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-sm text-white/80">
+                Country
+                <input type="text" placeholder="e.g., Italy" className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none" value={birthCountry} onChange={(e) => setBirthCountry(e.target.value)} />
+              </label>
+              <label className="block text-sm text-white/80">
+                City
+                <input type="text" placeholder="e.g., Rome" className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none" value={birthCity} onChange={(e) => setBirthCity(e.target.value)} />
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={resolveBirth} className="bg-black text-white border border-white rounded-lg px-3 py-2 text-sm hover:bg-black/90" disabled={!birthCity || birthResolving}>
+                {birthResolving ? "Resolving…" : "Lookup Timezone"}
+              </button>
+              {birthResolved && (
+                <div className="text-xs text-white/80">
+                  {birthResolved.timezone} (UTC {birthResolved.utcOffsetSeconds >= 0 ? "+" : ""}{(birthResolved.utcOffsetSeconds/3600).toFixed(1)}), {birthResolved.latitude?.toFixed(2)}, {birthResolved.longitude?.toFixed(2)}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-white/90 font-medium">Current Location</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-sm text-white/80">
+                Country
+                <input type="text" placeholder="e.g., United Kingdom" className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none" value={currentCountry} onChange={(e) => setCurrentCountry(e.target.value)} />
+              </label>
+              <label className="block text-sm text-white/80">
+                City
+                <input type="text" placeholder="e.g., London" className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none" value={currentCity} onChange={(e) => setCurrentCity(e.target.value)} />
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={resolveCurrent} className="bg-black text-white border border-white rounded-lg px-3 py-2 text-sm hover:bg-black/90" disabled={!currentCity || currentResolving}>
+                {currentResolving ? "Resolving…" : "Lookup Timezone"}
+              </button>
+              {currentResolved && (
+                <div className="text-xs text-white/80">
+                  {currentResolved.timezone} (UTC {currentResolved.utcOffsetSeconds >= 0 ? "+" : ""}{(currentResolved.utcOffsetSeconds/3600).toFixed(1)})
+                </div>
+              )}
+            </div>
+            {currentOffsetHours != null && (
+              <p className="text-xs text-white/70">Current UTC offset: {currentOffsetHours >= 0 ? "+" : ""}{currentOffsetHours}h</p>
+            )}
+          </section>
+
+          <button onClick={onSave} className="w-full bg-black text-white border border-white font-medium rounded-lg py-2 transition hover:bg-black/90" disabled={!dateStr || !birthCity}>
+            Save & Generate Birth Chart
           </button>
         </div>
       </main>

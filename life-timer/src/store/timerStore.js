@@ -1,22 +1,44 @@
 import { create } from 'zustand';
 
 export const useTimerStore = create((set) => ({
+  // Core birth date/time (Date in local time)
   birthDate: null,
   setBirthDate: (date) => set({ birthDate: date }),
-  // Birth location
+
+  // Birth location details
   birthCountry: '',
   birthCity: '',
-  setBirthCountry: (country) => set({ birthCountry: country }),
-  setBirthCity: (city) => set({ birthCity: city }),
-  birthTimeZone: '',
-  setBirthTimeZone: (tz) => set({ birthTimeZone: tz }),
-  // Current location
+  birthLat: null,
+  birthLon: null,
+  birthTimeZone: '', // IANA, e.g., Europe/Rome
+  birthUtcOffsetSeconds: null, // offset at birth moment
+
+  // Current location details
   currentCountry: '',
   currentCity: '',
-  setCurrentCountry: (country) => set({ currentCountry: country }),
-  setCurrentCity: (city) => set({ currentCity: city }),
+  currentLat: null,
+  currentLon: null,
   currentTimeZone: '',
-  setCurrentTimeZone: (tz) => set({ currentTimeZone: tz }),
+  currentUtcOffsetSeconds: null,
+
+  // Bulk setter helpers
+  setBirthLocation: (info) => set((state) => ({
+    birthCountry: info.birthCountry ?? state.birthCountry,
+    birthCity: info.birthCity ?? state.birthCity,
+    birthLat: info.birthLat ?? state.birthLat,
+    birthLon: info.birthLon ?? state.birthLon,
+    birthTimeZone: info.birthTimeZone ?? state.birthTimeZone,
+    birthUtcOffsetSeconds: info.birthUtcOffsetSeconds ?? state.birthUtcOffsetSeconds,
+  })),
+  setCurrentLocation: (info) => set((state) => ({
+    currentCountry: info.currentCountry ?? state.currentCountry,
+    currentCity: info.currentCity ?? state.currentCity,
+    currentLat: info.currentLat ?? state.currentLat,
+    currentLon: info.currentLon ?? state.currentLon,
+    currentTimeZone: info.currentTimeZone ?? state.currentTimeZone,
+    currentUtcOffsetSeconds: info.currentUtcOffsetSeconds ?? state.currentUtcOffsetSeconds,
+  })),
+
   deviceType: null, // 'ios' | 'android'
   setDeviceType: (type) => set({ deviceType: type }),
 }));

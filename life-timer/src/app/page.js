@@ -212,7 +212,7 @@ function HomeContent() {
           <div className="text-sm flex items-center gap-3 text-white/70">
             <Link href="/device/welcome" className="hover:text-white">Welcome</Link>
             <Link href="/device" className="hover:text-white">Device</Link>
-            <Link href="/age" className="hover:text-white">Age</Link>
+            <Link href="/age" className="hover:text-white">Personal Info</Link>
             <Link href="/birth-chart" className="hover:text-white">Birth Chart</Link>
           </div>
         </div>
