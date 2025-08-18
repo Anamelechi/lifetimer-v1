@@ -87,7 +87,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           envs: COMPOSE_FILE
           script: |
-            set -euo pipefail
+            set -eu
             DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
             if [ -z "${DEPLOY_PATH}" ]; then
               echo "DEPLOY_PATH secret is not set" >&2
@@ -135,9 +135,21 @@ jobs:
                 exit 1
               fi
 
-              # Build and restart services
-              ${DCMD} ${COMPOSE_ARGS} pull || true
-              ${DCMD} ${COMPOSE_ARGS} build
-              ${DCMD} ${COMPOSE_ARGS} up -d
+              # Resolve env file: handle case where .env is a directory (compose would error)
+              ENV_FILE=""
+              if [ -f ".env" ]; then
+                ENV_FILE=".env"
+              elif [ -f "config/.env" ]; then
+                ENV_FILE="config/.env"
+              else
+                # Create a temporary empty env file to avoid compose trying to read a directory named .env
+                ENV_FILE="/tmp/empty.env"
+                : > "$ENV_FILE"
+              fi
+
+              # Build and restart services with explicit env file
+              ${DCMD} ${COMPOSE_ARGS} --env-file "$ENV_FILE" pull || true
+              ${DCMD} ${COMPOSE_ARGS} --env-file "$ENV_FILE" build
+              ${DCMD} ${COMPOSE_ARGS} --env-file "$ENV_FILE" up -d
             fi
             docker system prune -f || true
