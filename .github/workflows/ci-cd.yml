@@ -1,0 +1,116 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20.x'
+  WORKING_DIR: life-timer
+
+jobs:
+  ci:
+    name: Lint and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ${{ env.WORKING_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifact (PRs only)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          path: |
+            life-timer/.next
+            life-timer/public
+          retention-days: 7
+
+  deploy:
+    name: Deploy to server
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create deployment bundle
+        run: |
+          tar --exclude='.next' --exclude='node_modules' -czf life-timer.tar.gz -C life-timer .
+
+      - name: Copy bundle to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "life-timer.tar.gz"
+          target: "${{ secrets.DEPLOY_PATH }}/tmp"
+
+      - name: Remote deploy
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          COMPOSE_FILE: ${{ secrets.COMPOSE_FILE }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          envs: COMPOSE_FILE
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.DEPLOY_PATH }}"
+            mkdir -p tmp app
+            tar -xzf tmp/life-timer.tar.gz -C app
+            rm -f tmp/life-timer.tar.gz
+            if [ -x "./deploy.sh" ]; then
+              echo "Running deploy.sh..."
+              bash ./deploy.sh
+            else
+              echo "deploy.sh not found, running generic docker compose deploy..."
+              if docker compose version >/dev/null 2>&1; then
+                DCMD="docker compose"
+              else
+                DCMD="docker-compose"
+              fi
+              if [ -n "${COMPOSE_FILE:-}" ] && [ -f "$COMPOSE_FILE" ]; then
+                echo "Using compose file: $COMPOSE_FILE"
+                $DCMD -f "$COMPOSE_FILE" pull || true
+                $DCMD -f "$COMPOSE_FILE" build
+                $DCMD -f "$COMPOSE_FILE" up -d
+              else
+                $DCMD pull || true
+                $DCMD build
+                $DCMD up -d
+              fi
+            fi
+            docker system prune -f || true

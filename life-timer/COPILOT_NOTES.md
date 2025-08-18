@@ -12,6 +12,11 @@ A living log to carry context across chats/devices. Use this as the source of tr
 - Runtime: Docker (dev and prod compose), PWA with offline page
 
 ## Decision and change log (high level)
+- 2025-08-18: Add CI/CD (GitHub Actions) for lint+build on PRs and deploy to server on main
+  - Files: .github/workflows/ci-cd.yml, life-timer/COPILOT_NOTES.md
+  - Notes: Uses Node 20; bundles app and deploys via SSH to /home/anamelechi/docker-apache; calls deploy.sh if present, else docker compose up -d
+- 2025-08-13: copilot notes commit
+  - Files: life-timer/COPILOT_NOTES.md
 - 2025-08-13: MVP ready - running on local host
   - Files: life-timer/.githooks/post-commit, life-timer/COPILOT_NOTES.md, life-timer/README.md, life-timer/docker-compose.prod.yml, life-timer/docker-compose.yml, life-timer/package.json, life-timer/scripts/append-notes.js, life-timer/src/app/age/page.js, life-timer/src/app/api/fact/route.js, life-timer/src/app/device/ios/page.js, life-timer/src/app/device/page.js, life-timer/src/app/device/welcome/page.js, life-timer/src/app/page.js, life-timer/src/components/BackButton.js, life-timer/src/store/timerStore.js
 - 2025-08-13: Switch facts to Wikipedia API with daily rotation; remove Google/Gemini envs
@@ -48,8 +53,9 @@ A living log to carry context across chats/devices. Use this as the source of tr
 - PWA installability audit
   - Verify maskable icons, theme/background colors, SW registration in prod
   - Optional: run Lighthouse and address warnings
-- Random Fact API keys
-  - Provide GOOGLE_CSE_ID, GOOGLE_API_KEY, GEMINI_API_KEY in compose/.env; handle missing keys gracefully in UI
+- CI/CD hardening
+  - Add status badges; require checks on PR; set SSH key as deploy key with least privilege
+  - Optional: build and push image to GHCR with content-addressable tag; use digest in compose
 - Minor UX polish
   - Fine-tune dial spacing/typography on small screens
 - Tests/CI (optional)
