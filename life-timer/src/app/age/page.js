@@ -23,9 +23,15 @@ function combineDateTime(dateStr, timeStr = "00:00") {
   return new Date(y, (m || 1) - 1, d || 1, hh || 0, mm || 0, 0, 0);
 }
 
-export default function AgeSelectionPage() {
+export default function AboutMePage() {
   const router = useRouter();
-  const { birthDate, setBirthDate } = useTimerStore();
+  const {
+    birthDate, setBirthDate,
+    birthCountry, setBirthCountry,
+    birthCity, setBirthCity,
+    currentCountry, setCurrentCountry,
+    currentCity, setCurrentCity,
+  } = useTimerStore();
   const [dateStr, setDateStr] = useState("");
   const [timeStr, setTimeStr] = useState("00:00");
 
@@ -40,7 +46,16 @@ export default function AgeSelectionPage() {
       setDateStr(toDateOnlyString(d));
       setTimeStr(toTimeHMString(d));
     }
-  }, [birthDate]);
+    // hydrate locations
+    const bc = typeof window !== "undefined" ? localStorage.getItem("life-timer:birthCountry") : null;
+    const bct = typeof window !== "undefined" ? localStorage.getItem("life-timer:birthCity") : null;
+    const cc = typeof window !== "undefined" ? localStorage.getItem("life-timer:currentCountry") : null;
+    const cct = typeof window !== "undefined" ? localStorage.getItem("life-timer:currentCity") : null;
+    if (bc) setBirthCountry(bc);
+    if (bct) setBirthCity(bct);
+    if (cc) setCurrentCountry(cc);
+    if (cct) setCurrentCity(cct);
+  }, [birthDate, setBirthCountry, setBirthCity, setCurrentCountry, setCurrentCity]);
 
   const onSave = () => {
     const d = combineDateTime(dateStr, timeStr || "00:00");
@@ -49,8 +64,12 @@ export default function AgeSelectionPage() {
     if (typeof window !== "undefined") {
       localStorage.setItem("life-timer:birthDate", dateStr);
       localStorage.setItem("life-timer:birthTime", timeStr || "00:00");
+      localStorage.setItem("life-timer:birthCountry", birthCountry || "");
+      localStorage.setItem("life-timer:birthCity", birthCity || "");
+      localStorage.setItem("life-timer:currentCountry", currentCountry || "");
+      localStorage.setItem("life-timer:currentCity", currentCity || "");
     }
-  router.push("/");
+    router.push("/");
   };
 
   return (
@@ -58,10 +77,32 @@ export default function AgeSelectionPage() {
       <main className="w-full max-w-md">
         <div className="flex items-center justify-between mb-4">
           <BackButton fallback="/device/welcome" />
-          <h1 className="text-xl font-semibold">Select Your Birth Date & Time</h1>
+          <h1 className="text-xl font-semibold">About Me</h1>
           <span className="w-[64px]" />
         </div>
         <div className="glass rounded-2xl p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block text-sm text-white/80 col-span-2">
+              Birth country
+              <input
+                type="text"
+                className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none"
+                value={birthCountry}
+                onChange={(e) => setBirthCountry(e.target.value)}
+                placeholder="e.g., Nigeria"
+              />
+            </label>
+            <label className="block text-sm text-white/80 col-span-2">
+              Birth city
+              <input
+                type="text"
+                className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none"
+                value={birthCity}
+                onChange={(e) => setBirthCity(e.target.value)}
+                placeholder="e.g., Lagos"
+              />
+            </label>
+          </div>
           <label className="block text-sm text-white/80">
             Date
             <input
@@ -81,6 +122,28 @@ export default function AgeSelectionPage() {
               onChange={(e) => setTimeStr(e.target.value)}
             />
           </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block text-sm text-white/80 col-span-2">
+              Current country
+              <input
+                type="text"
+                className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none"
+                value={currentCountry}
+                onChange={(e) => setCurrentCountry(e.target.value)}
+                placeholder="e.g., United Kingdom"
+              />
+            </label>
+            <label className="block text-sm text-white/80 col-span-2">
+              Current city
+              <input
+                type="text"
+                className="mt-1 w-full bg-transparent border border-white/20 rounded px-3 py-2 text-sm focus:outline-none"
+                value={currentCity}
+                onChange={(e) => setCurrentCity(e.target.value)}
+                placeholder="e.g., London"
+              />
+            </label>
+          </div>
           <button
             onClick={onSave}
             className="w-full bg-black text-white border border-white font-medium rounded-lg py-2 transition hover:bg-black/90"

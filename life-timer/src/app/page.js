@@ -213,6 +213,7 @@ function HomeContent() {
             <Link href="/device/welcome" className="hover:text-white">Welcome</Link>
             <Link href="/device" className="hover:text-white">Device</Link>
             <Link href="/age" className="hover:text-white">Age</Link>
+            <Link href="/birth-chart" className="hover:text-white">Birth Chart</Link>
           </div>
         </div>
 
