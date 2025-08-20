@@ -166,4 +166,4 @@ jobs:
             docker system prune -f || true
 
             echo "Currently running containers:"
-            docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}
+            docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
