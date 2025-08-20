@@ -72,7 +72,7 @@ jobs:
           source: "life-timer-app.tar.gz"
           target: "${{ secrets.DEPLOY_PATH }}/tmp"
 
-      - name: Remote deploy (blue/green, zero-downtime)
+      - name: Remote deploy
         uses: appleboy/ssh-action@v1.2.0
         env:
           COMPOSE_FILE: ${{ secrets.COMPOSE_FILE }}
@@ -98,7 +98,7 @@ jobs:
             echo "Listing top-level files:"
             ls -la
 
-            # Select docker compose CLI (Compose V2 preferred)
+            # Select docker compose CLI
             if docker compose version >/dev/null 2>&1; then
               DCMD="docker compose"
             elif command -v docker-compose >/dev/null 2>&1; then
@@ -154,179 +154,16 @@ jobs:
             fi
             echo "Using env file: $ENV_FILE"; ls -ld "$ENV_FILE"
 
-            # Blue/Green deploy with zero downtime
-            # Strategy:
-            # 1) Run new stack under alternate project on an alternate port (3001 or 3002) using an override file.
-            # 2) Wait for container healthcheck to be healthy.
-            # 3) Atomically switch host traffic on port 3000 to the new port via iptables REDIRECT.
-            # 4) Retire old stack.
+            # Stop containers and remove images so compose rebuilds cleanly
+            ${DCMD} -f "$COMPOSE_BASE" --env-file "$ENV_FILE" down --remove-orphans --rmi local || true
+            docker image prune -af || true
 
-            ACTIVE_PORT_FILE="${DEPLOY_PATH}/.active_port"
-            if [ -f "$ACTIVE_PORT_FILE" ]; then
-              ACTIVE_PORT=$(cat "$ACTIVE_PORT_FILE" || true)
-            else
-              ACTIVE_PORT="" # unknown first run
-            fi
-            if [ "$ACTIVE_PORT" != "3001" ] && [ "$ACTIVE_PORT" != "3002" ]; then
-              # Initialize to 3001 on first run
-              ACTIVE_PORT=3001
-              echo "$ACTIVE_PORT" > "$ACTIVE_PORT_FILE"
-            fi
-            if [ "$ACTIVE_PORT" = "3001" ]; then NEW_PORT=3002; else NEW_PORT=3001; fi
+            # Build and start fresh containers using server Dockerfile/compose
+            ${DCMD} -f "$COMPOSE_BASE" --env-file "$ENV_FILE" build --pull --no-cache
+            ${DCMD} -f "$COMPOSE_BASE" --env-file "$ENV_FILE" up -d
 
-            NEW_PROJECT="life-timer-${NEW_PORT}"
-            OLD_PROJECT="life-timer-${ACTIVE_PORT}"
-
-            # Detect primary service name from compose config
-            SERVICES=$(${DCMD} -f "$COMPOSE_BASE" --env-file "$ENV_FILE" config --services)
-            echo "Available services: $SERVICES"
-            if echo "$SERVICES" | grep -q "^nextjs-app$"; then
-              SERVICE="nextjs-app"
-            elif echo "$SERVICES" | grep -q "^web$"; then
-              SERVICE="web"
-            else
-              SERVICE=$(echo "$SERVICES" | head -n1)
-            fi
-            if [ -z "$SERVICE" ]; then
-              echo "Could not detect a service name from compose config" >&2
-              exit 1
-            fi
-            echo "Using service: $SERVICE"
-
-            # Create override with proper YAML reset tag to completely replace ports array
-            OVERRIDE_FILE="/tmp/life-timer-override-${NEW_PORT}.yml"
-            echo "Creating override ${OVERRIDE_FILE} mapping ${NEW_PORT}->3000"
-            # Use !override YAML tag to completely replace ports array per Docker Compose docs
-            printf '%s\n' \
-              "services:" \
-              "  ${SERVICE}:" \
-              "    ports: !override" \
-              "      - \"${NEW_PORT}:3000\"" \
-              > "$OVERRIDE_FILE"
-            echo "Override file contents:"
-            cat "$OVERRIDE_FILE"
-
-            # Override container_name to avoid conflicts when base compose sets a fixed name
-            OVERRIDE_CN="/tmp/life-timer-override-cn-${NEW_PORT}.yml"
-            VERSION_SUFFIX=$([ "$NEW_PORT" = "3001" ] && echo "v1" || echo "v2")
-            printf '%s\n' \
-              "services:" \
-              "  ${SERVICE}:" \
-              "    container_name: \"${SERVICE}-${VERSION_SUFFIX}\"" \
-              > "$OVERRIDE_CN"
-            # If cloudflared service exists, also suffix its container name
-            if echo "$SERVICES" | grep -q "^cloudflared$"; then
-              printf '%s\n' \
-                "  cloudflared:" \
-                "    container_name: \"cloudflared-tunnel-${VERSION_SUFFIX}\"" \
-                >> "$OVERRIDE_CN"
-            fi
-
-            # Detect networks from compose and mark existing ones as external to avoid recreate conflicts
-            OVERRIDE_NET="/tmp/life-timer-override-net.yml"
-            # Start with an always-valid minimal file
-            printf '%s\n' "networks: {}" > "$OVERRIDE_NET"
-            NETS=$(${DCMD} -f "$COMPOSE_BASE" --env-file "$ENV_FILE" config | awk '
-              /^networks:/ {f=1; next}
-              f && /^[^[:space:]]/ {f=0}
-              f && /^[[:space:]]{2}[a-zA-Z0-9_-]+:/ { n=$1; gsub(":","",n); print n }
-            ')
-            NET_COUNT=0
-            for n in $NETS; do
-              if docker network inspect "$n" >/dev/null 2>&1; then
-                if [ $NET_COUNT -eq 0 ]; then printf '%s\n' "networks:" > "$OVERRIDE_NET"; fi
-                printf '%s\n' "  ${n}:" "    external: true" >> "$OVERRIDE_NET"
-                NET_COUNT=$((NET_COUNT+1))
-              fi
-            done
-
-            echo "Building and starting new stack: ${NEW_PROJECT} on port ${NEW_PORT}"
-            echo "Checking final compose config..."
-            ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" config
-            set +e
-            ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" build --pull --no-cache
-            BUILD_RC=$?
-            set -e
-            if [ $BUILD_RC -ne 0 ]; then
-              echo "Primary build failed; attempting fallback by injecting temporary build context override..."
-              OVERRIDE_BUILD="/tmp/life-timer-override-build.yml"
-              printf '%s\n' \
-                "services:" \
-                "  ${SERVICE}:" \
-                "    build:" \
-                "      context: \"${DEPLOY_PATH}\"" \
-                "      dockerfile: \"Dockerfile\"" \
-                > "$OVERRIDE_BUILD"
-              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_BUILD" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" build --pull --no-cache
-              USE_BUILD_OVERRIDE=1
-            else
-              USE_BUILD_OVERRIDE=0
-            fi
-            if [ "$USE_BUILD_OVERRIDE" = "1" ]; then
-              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_BUILD" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" up -d
-            else
-              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" up -d
-            fi
-
-            # Wait for health (Compose service name: web)
-            NEW_CID=$(${DCMD} -p "$NEW_PROJECT" ps -q "$SERVICE")
-            if [ -z "$NEW_CID" ]; then echo "Failed to get container ID for new web" >&2; exit 1; fi
-            echo "Waiting for new container ($NEW_CID) to become healthy..."
-            ATTEMPTS=40
-            SLEEP=3
-            OK=0
-            for i in $(seq 1 $ATTEMPTS); do
-              STATUS=$(docker inspect -f '{{ if .State.Health }}{{ .State.Health.Status }}{{ else }}none{{ end }}' "$NEW_CID" 2>/dev/null || echo "unknown")
-              echo "Health attempt $i: $STATUS"
-              if [ "$STATUS" = "healthy" ]; then OK=1; break; fi
-              # Fallback: probe HTTP on the new published port
-              if command -v curl >/dev/null 2>&1; then
-                if curl -fsS --max-time 2 "http://127.0.0.1:${NEW_PORT}/" >/dev/null; then
-                  OK=1; break;
-                fi
-              elif command -v wget >/dev/null 2>&1; then
-                if wget -q -T 2 -O - "http://127.0.0.1:${NEW_PORT}/" >/dev/null; then
-                  OK=1; break;
-                fi
-              fi
-              sleep $SLEEP
-            done
-            if [ "$OK" != "1" ]; then
-              echo "New container did not become healthy in time" >&2
-              ${DCMD} -p "$NEW_PROJECT" logs --no-log-prefix "$SERVICE" || true
-              exit 1
-            fi
-
-            # Determine sudo availability for iptables
-            if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then SUDO="sudo -n"; else SUDO=""; fi
-
-            # Install/update LT_REDIRECT chain for port 3000
-            # Compose docs: running multiple projects is supported via -p. We avoid port conflicts by alternate external port.
-            # iptables REDIRECT per Netfilter NAT docs: https://ipset.netfilter.org/iptables-extensions.man.html#lbCH
-            $SUDO iptables -t nat -N LT_REDIRECT 2>/dev/null || true
-            $SUDO iptables -t nat -F LT_REDIRECT || true
-            $SUDO iptables -t nat -C PREROUTING -p tcp --dport 3000 -j LT_REDIRECT 2>/dev/null || \
-              $SUDO iptables -t nat -I PREROUTING 1 -p tcp --dport 3000 -j LT_REDIRECT
-            # Redirect 3000 -> NEW_PORT
-            $SUDO iptables -t nat -A LT_REDIRECT -p tcp --dport 3000 -j REDIRECT --to-ports ${NEW_PORT}
-
-            # Optionally mirror for local-origin traffic (OUTPUT), useful if local tools hit :3000
-            $SUDO iptables -t nat -N LT_REDIRECT_OUT 2>/dev/null || true
-            $SUDO iptables -t nat -F LT_REDIRECT_OUT || true
-            $SUDO iptables -t nat -C OUTPUT -p tcp --dport 3000 -j LT_REDIRECT_OUT 2>/dev/null || \
-              $SUDO iptables -t nat -I OUTPUT 1 -p tcp --dport 3000 -j LT_REDIRECT_OUT
-            $SUDO iptables -t nat -A LT_REDIRECT_OUT -p tcp --dport 3000 -j REDIRECT --to-ports ${NEW_PORT}
-
-            # Mark NEW as active and retire OLD
-            echo "${NEW_PORT}" > "$ACTIVE_PORT_FILE"
-            echo "Traffic switched to port ${NEW_PORT}. Retiring old project: ${OLD_PROJECT}"
-            # Stop and remove old project if it exists
-            if ${DCMD} -p "$OLD_PROJECT" ps >/dev/null 2>&1; then
-              ${DCMD} -p "$OLD_PROJECT" down --remove-orphans || true
-            fi
+            # Clean up any dangling resources
+            docker system prune -f || true
 
             echo "Currently running containers:"
-            docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
-
-            # Cleanup temporary files
-            rm -f "$OVERRIDE_FILE" "$OVERRIDE_BUILD" "$OVERRIDE_CN" "$OVERRIDE_NET" || true
+            docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}'
