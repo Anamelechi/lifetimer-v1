@@ -176,7 +176,7 @@ jobs:
 
             NEW_PROJECT="life-timer-${NEW_PORT}"
             OLD_PROJECT="life-timer-${ACTIVE_PORT}"
-            OVERRIDE_FILE="override.port${NEW_PORT}.yml"
+            OVERRIDE_FILE="/tmp/life-timer-override-${NEW_PORT}.yml"
             echo "Creating override ${OVERRIDE_FILE} mapping ${NEW_PORT}->3000"
             cat > "$OVERRIDE_FILE" <<EOF
             services:
@@ -248,3 +248,6 @@ jobs:
 
             echo "Currently running containers:"
             docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
+
+            # Cleanup temporary files
+            rm -f "$OVERRIDE_FILE" || true

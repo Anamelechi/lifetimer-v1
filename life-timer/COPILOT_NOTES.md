@@ -12,6 +12,8 @@ A living log to carry context across chats/devices. Use this as the source of tr
 - Runtime: Docker (dev and prod compose), PWA with offline page
 
 ## Decision and change log (high level)
+- 2025-08-20: Goal feature first rollout
+  - Files: .github/workflows/ci-cd.yml, life-timer/COPILOT_NOTES.md, life-timer/src/app/goals/page.js, life-timer/src/app/page.js, life-timer/src/store/goalsStore.js
 - 2025-08-20: Add too Device fix
   - Files: life-timer/COPILOT_NOTES.md, life-timer/src/app/page.js
 - 2025-08-20: place of birth and current location persistent fix
