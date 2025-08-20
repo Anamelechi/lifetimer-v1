@@ -200,14 +200,24 @@ jobs:
 
             # Override container_name to avoid conflicts when base compose sets a fixed name
             OVERRIDE_CN="/tmp/life-timer-override-cn-${NEW_PORT}.yml"
+            VERSION_SUFFIX=$([ "$NEW_PORT" = "3001" ] && echo "v1" || echo "v2")
             printf '%s\n' \
               "services:" \
               "  ${SERVICE}:" \
-              "    container_name: \"${NEW_PROJECT}-${SERVICE}\"" \
+              "    container_name: \"${SERVICE}-${VERSION_SUFFIX}\"" \
               > "$OVERRIDE_CN"
+            # If cloudflared service exists, also suffix its container name
+            if echo "$SERVICES" | grep -q "^cloudflared$"; then
+              printf '%s\n' \
+                "  cloudflared:" \
+                "    container_name: \"cloudflared-tunnel-${VERSION_SUFFIX}\"" \
+                >> "$OVERRIDE_CN"
+            fi
 
             # Detect networks from compose and mark existing ones as external to avoid recreate conflicts
             OVERRIDE_NET="/tmp/life-timer-override-net.yml"
+            # Start with an always-valid minimal file
+            printf '%s\n' "networks: {}" > "$OVERRIDE_NET"
             NETS=$(${DCMD} -f "$COMPOSE_BASE" --env-file "$ENV_FILE" config | awk '
               /^networks:/ {f=1; next}
               f && /^[^[:space:]]/ {f=0}
@@ -224,7 +234,7 @@ jobs:
 
             echo "Building and starting new stack: ${NEW_PROJECT} on port ${NEW_PORT}"
             set +e
-            ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" ${NET_COUNT:+-f "$OVERRIDE_NET"} --env-file "$ENV_FILE" build --pull --no-cache
+            ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" build --pull --no-cache
             BUILD_RC=$?
             set -e
             if [ $BUILD_RC -ne 0 ]; then
@@ -237,15 +247,15 @@ jobs:
                 "      context: \"${DEPLOY_PATH}\"" \
                 "      dockerfile: \"Dockerfile\"" \
                 > "$OVERRIDE_BUILD"
-              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_BUILD" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" ${NET_COUNT:+-f "$OVERRIDE_NET"} --env-file "$ENV_FILE" build --pull --no-cache
+              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_BUILD" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" build --pull --no-cache
               USE_BUILD_OVERRIDE=1
             else
               USE_BUILD_OVERRIDE=0
             fi
             if [ "$USE_BUILD_OVERRIDE" = "1" ]; then
-              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_BUILD" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" ${NET_COUNT:+-f "$OVERRIDE_NET"} --env-file "$ENV_FILE" up -d
+              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_BUILD" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" up -d
             else
-              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" ${NET_COUNT:+-f "$OVERRIDE_NET"} --env-file "$ENV_FILE" up -d
+              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" up -d
             fi
 
             # Wait for health (Compose service name: web)
@@ -304,7 +314,7 @@ jobs:
             if ${DCMD} -p "$OLD_PROJECT" ps >/dev/null 2>&1; then
               ${DCMD} -p "$OLD_PROJECT" down --remove-orphans || true
             fi
-            
+
             echo "Currently running containers:"
             docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
 

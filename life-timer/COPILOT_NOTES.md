@@ -14,6 +14,8 @@ A living log to carry context across chats/devices. Use this as the source of tr
 ## Decision and change log (high level)
 - 2025-08-20: conflicting container name fix
   - Files: .github/workflows/ci-cd.yml, life-timer/COPILOT_NOTES.md
+- 2025-08-20: conflicting container name fix
+  - Files: .github/workflows/ci-cd.yml, life-timer/COPILOT_NOTES.md
 - 2025-08-20: blue green fix 3
   - Files: .github/workflows/ci-cd.yml, life-timer/COPILOT_NOTES.md
 - 2025-08-20: blue green fix 2
