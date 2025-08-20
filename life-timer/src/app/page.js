@@ -311,7 +311,7 @@ function MenuDropdown() {
         <div className="absolute right-0 mt-2 w-48 max-w-[80vw] rounded-lg bg-black/85 backdrop-blur border border-white/10 shadow-xl z-30">
           <nav className="py-1.5 max-h-[60vh] overflow-auto" onClick={() => setOpen(false)}>
             <Link href="/device/welcome" className="block px-3 py-2.5 hover:bg-white/10">Welcome</Link>
-            <Link href="/device" className="block px-3 py-2.5 hover:bg-white/10">Device</Link>
+            <Link href="/device" className="block px-3 py-2.5 hover:bg-white/10">Add to Device</Link>
             <Link href="/age" className="block px-3 py-2.5 hover:bg-white/10">Personal Info</Link>
             <Link href="/birth-chart" className="block px-3 py-2.5 hover:bg-white/10">Birth Chart</Link>
           </nav>
