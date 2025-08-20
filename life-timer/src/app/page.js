@@ -64,7 +64,7 @@ function HomeContent() {
   const savedName = localStorage.getItem("life-timer:fullName");
     if (savedDate) setBirthDate(combineDateTime(savedDate, savedTime || "00:00"));
   if (savedName) setFullName(savedName);
-  }, [setBirthDate]);
+  }, [setBirthDate, setFullName]);
 
   // On first visit without birthDate, go to onboarding welcome
   useEffect(() => {
@@ -241,6 +241,30 @@ function HomeContent() {
           <Stat label="MINUTES" value={mounted ? minutesSinceHourStart : null} />
           <Stat label="SECONDS" value={mounted ? secondsSinceMinuteStart : null} full />
         </div>
+
+        {/* Quick Access Navigation */}
+        {birthDate && (
+          <div className="mt-6">
+            <div className="grid grid-cols-2 gap-3">
+              <Link
+                href="/goals"
+                className="bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg p-4 text-center transition-all group"
+              >
+                <div className="text-lg mb-1">🎯</div>
+                <div className="text-sm font-medium text-white/90">Goals</div>
+                <div className="text-xs text-white/60">Track your targets</div>
+              </Link>
+              <Link
+                href="/birth-chart"
+                className="bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg p-4 text-center transition-all group"
+              >
+                <div className="text-lg mb-1">⭐</div>
+                <div className="text-sm font-medium text-white/90">Birth Chart</div>
+                <div className="text-xs text-white/60">Your astrology</div>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {!demo && (
           <div className="mt-8 space-y-4">

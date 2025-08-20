@@ -210,7 +210,20 @@ export default function BirthChartPage() {
 
 				<div className="glass rounded-2xl p-6 space-y-6">
 					{!hydrated && <p className="text-white/70">Loading…</p>}
-					{hydrated && (
+					{hydrated && !birthLocal && (
+						<div className="text-center py-8">
+							<div className="text-4xl mb-3">⭐</div>
+							<h3 className="text-lg font-semibold text-white/90 mb-2">Set Up Your Birth Chart</h3>
+							<p className="text-white/70 text-sm mb-4">Enter your birth date, time, and location to see your complete astrological chart.</p>
+							<Link 
+								href="/age"
+								className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all"
+							>
+								Add Birth Details
+							</Link>
+						</div>
+					)}
+					{hydrated && birthLocal && (
 						<>
 							<section className="space-y-1">
 								<h2 className="text-white/90 font-medium">Your Details</h2>

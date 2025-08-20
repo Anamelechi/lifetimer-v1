@@ -12,6 +12,8 @@ A living log to carry context across chats/devices. Use this as the source of tr
 - Runtime: Docker (dev and prod compose), PWA with offline page
 
 ## Decision and change log (high level)
+- 2025-08-20: workflow fix
+  - Files: .github/workflows/ci-cd.yml, life-timer/COPILOT_NOTES.md
 - 2025-08-20: add goals collapse feature
   - Files: .github/workflows/ci-cd.yml, life-timer/COPILOT_NOTES.md, life-timer/src/app/goals/page.js
 - 2025-08-20: Goal page feature normal deploy

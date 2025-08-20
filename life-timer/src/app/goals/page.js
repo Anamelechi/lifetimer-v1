@@ -17,6 +17,22 @@ export default function GoalsPage() {
     return () => clearInterval(t);
   }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && showAddForm) {
+        setShowAddForm(false);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        setShowAddForm(true);
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showAddForm]);
+
   return (
     <div className="min-h-screen flex items-start justify-center p-6">
       <main className="w-full max-w-md">
@@ -31,7 +47,7 @@ export default function GoalsPage() {
           <div className="space-y-3">
             <button 
               onClick={() => setShowAddForm(!showAddForm)}
-              className="w-full bg-white/10 hover:bg-white/20 border border-white/30 text-white font-medium rounded-lg py-3 px-4 transition-all duration-200 flex items-center justify-center gap-2"
+              className="w-full bg-white/10 hover:bg-white/20 border border-white/30 text-white font-medium rounded-lg py-4 px-4 transition-all duration-200 flex items-center justify-center gap-2 min-h-[48px]"
             >
               <span>{showAddForm ? 'Cancel' : 'Add Goal'}</span>
               <span className={`transform transition-transform duration-200 ${showAddForm ? 'rotate-45' : ''}`}>
@@ -47,9 +63,23 @@ export default function GoalsPage() {
           </div>
 
           <section className="space-y-3">
-            <h2 className="text-white/90 font-medium">Your Goals</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-white/90 font-medium">Your Goals</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-white/60 bg-white/10 px-2 py-1 rounded-full">
+                  {goals.length} goal{goals.length !== 1 ? 's' : ''}
+                </span>
+                <span className="text-xs text-white/40 hidden sm:block">
+                  Cmd+N to add
+                </span>
+              </div>
+            </div>
             {goals.length === 0 ? (
-              <p className="text-white/70 text-sm">No goals yet. Add one above.</p>
+              <div className="text-center py-8">
+                <div className="text-4xl mb-3">🎯</div>
+                <p className="text-white/70 text-sm mb-3">No goals yet.</p>
+                <p className="text-white/60 text-xs">Click &quot;Add Goal&quot; above to set your first target!</p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {goals.map((g) => (

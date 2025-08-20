@@ -50,6 +50,20 @@ export default function PersonalInfoPage() {
   const [currentCity, setCurrentCity] = useState("");
   const [currentResolved, setCurrentResolved] = useState(null);
   const [currentResolving, setCurrentResolving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Form validation
+  const formValid = useMemo(() => {
+    return dateStr && dateStr.length > 0;
+  }, [dateStr]);
+
+  const hasMinimalData = useMemo(() => {
+    return dateStr && fullName.trim();
+  }, [dateStr, fullName]);
+
+  const hasCompleteData = useMemo(() => {
+    return hasMinimalData && birthCity && birthCountry;
+  }, [hasMinimalData, birthCity, birthCountry]);
 
   // hydrate from localStorage/store
   useEffect(() => {
@@ -69,7 +83,7 @@ export default function PersonalInfoPage() {
     setBirthCity(store.birthCity || localStorage.getItem("life-timer:birthCity") || "");
     setCurrentCountry(store.currentCountry || localStorage.getItem("life-timer:currentCountry") || "");
     setCurrentCity(store.currentCity || localStorage.getItem("life-timer:currentCity") || "");
-  }, []);
+  }, [store.birthDate, store.birthCountry, store.birthCity, store.currentCountry, store.currentCity]);
 
   const birthAtISO = useMemo(() => {
     if (!dateStr) return null;
@@ -124,9 +138,11 @@ export default function PersonalInfoPage() {
   };
 
   const onSave = async () => {
-  // Save name first
-  store.setFullName(fullName || "");
-  localStorage.setItem("life-timer:fullName", fullName || "");
+    setSaveSuccess(false);
+    
+    // Save name first
+    store.setFullName(fullName || "");
+    localStorage.setItem("life-timer:fullName", fullName || "");
 
     const d = combineDateTime(dateStr, timeStr || "00:00");
     if (d && !isNaN(d)) {
@@ -170,7 +186,14 @@ export default function PersonalInfoPage() {
     localStorage.setItem("life-timer:currentCountry", currentCountry || "");
     localStorage.setItem("life-timer:currentCity", currentCity || "");
 
-    router.push("/birth-chart");
+    setSaveSuccess(true);
+    
+    // Navigate based on data completeness
+    if (hasCompleteData) {
+      router.push("/birth-chart");
+    } else {
+      setTimeout(() => router.push("/"), 1500); // Show success message briefly
+    }
   };
 
   const currentOffsetHours = useMemo(() => {
@@ -258,9 +281,51 @@ export default function PersonalInfoPage() {
             )}
           </section>
 
-          <button onClick={onSave} className="w-full bg-black text-white border border-white font-medium rounded-lg py-2 transition hover:bg-black/90" disabled={!dateStr || !birthCity}>
-            Save & Generate Birth Chart
-          </button>
+          {/* Save Button with Status */}
+          <div className="space-y-3">
+            {saveSuccess && (
+              <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-3 text-center">
+                <p className="text-green-400 text-sm">✓ Information saved successfully!</p>
+              </div>
+            )}
+            
+            {!formValid && (
+              <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-3">
+                <p className="text-yellow-400 text-sm">📅 Please enter your birth date to continue</p>
+              </div>
+            )}
+            
+            {formValid && !hasCompleteData && (
+              <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
+                <p className="text-blue-400 text-sm">⭐ Add birth location for your complete Birth Chart</p>
+              </div>
+            )}
+
+            <button 
+              onClick={onSave} 
+              className={`w-full border font-medium rounded-lg py-3 transition ${
+                hasCompleteData 
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-500' 
+                  : formValid 
+                    ? 'bg-black hover:bg-black/90 text-white border-white'
+                    : 'bg-gray-600 text-gray-300 border-gray-500 cursor-not-allowed'
+              }`}
+              disabled={!formValid}
+            >
+              {hasCompleteData ? '⭐ Save & View Birth Chart' : hasMinimalData ? '📊 Save & Go to Timer' : '💾 Save Information'}
+            </button>
+            
+            {formValid && (
+              <div className="text-center">
+                <button 
+                  onClick={() => router.push('/')}
+                  className="text-white/70 hover:text-white text-sm underline"
+                >
+                  Skip to Life Timer →
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </main>
     </div>

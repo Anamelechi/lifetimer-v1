@@ -19,16 +19,22 @@ You’ve already traveled through countless sunrises, heartbeats, and breaths to
           </p>
           <div className="space-y-3 mt-2">
             <Link
-              href="/age"
-              className="block w-full text-center bg-black text-white border border-white rounded-lg py-2 hover:bg-black/90"
+              href="/"
+              className="block w-full text-center bg-white/10 text-white border border-white/30 rounded-lg py-3 font-medium hover:bg-white/20 transition-all"
             >
-              Open Personal Info
+              🏠 Skip to Life Timer
+            </Link>
+            <Link
+              href="/age"
+              className="block w-full text-center bg-blue-600 text-white border border-blue-500 rounded-lg py-3 font-medium hover:bg-blue-700 transition-all"
+            >
+              ⚙️ Set Up Personal Info
             </Link>
             <Link
               href="/device"
               className="block w-full text-center bg-black text-white border border-white rounded-lg py-2 hover:bg-black/90"
             >
-              Select Device
+              📱 Install App
             </Link>
           </div>
         </div>
