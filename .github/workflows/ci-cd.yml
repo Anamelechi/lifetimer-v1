@@ -176,11 +176,24 @@ jobs:
 
             NEW_PROJECT="life-timer-${NEW_PORT}"
             OLD_PROJECT="life-timer-${ACTIVE_PORT}"
+
+            # Detect primary service name from compose config
+            SERVICES=$(${DCMD} -f "$COMPOSE_BASE" --env-file "$ENV_FILE" config --services)
+            if echo "$SERVICES" | grep -q "^web$"; then
+              SERVICE="web"
+            else
+              SERVICE=$(echo "$SERVICES" | head -n1)
+            fi
+            if [ -z "$SERVICE" ]; then
+              echo "Could not detect a service name from compose config" >&2
+              exit 1
+            fi
+
             OVERRIDE_FILE="/tmp/life-timer-override-${NEW_PORT}.yml"
             echo "Creating override ${OVERRIDE_FILE} mapping ${NEW_PORT}->3000"
             cat > "$OVERRIDE_FILE" <<EOF
             services:
-              web:
+              ${SERVICE}:
                 ports:
                   - "${NEW_PORT}:3000"
             EOF
@@ -190,7 +203,7 @@ jobs:
             ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" --env-file "$ENV_FILE" up -d
 
             # Wait for health (Compose service name: web)
-            NEW_CID=$(${DCMD} -p "$NEW_PROJECT" ps -q web)
+            NEW_CID=$(${DCMD} -p "$NEW_PROJECT" ps -q "$SERVICE")
             if [ -z "$NEW_CID" ]; then echo "Failed to get container ID for new web" >&2; exit 1; fi
             echo "Waiting for new container ($NEW_CID) to become healthy..."
             ATTEMPTS=40
@@ -214,7 +227,7 @@ jobs:
             done
             if [ "$OK" != "1" ]; then
               echo "New container did not become healthy in time" >&2
-              ${DCMD} -p "$NEW_PROJECT" logs --no-log-prefix web || true
+              ${DCMD} -p "$NEW_PROJECT" logs --no-log-prefix "$SERVICE" || true
               exit 1
             fi
 
