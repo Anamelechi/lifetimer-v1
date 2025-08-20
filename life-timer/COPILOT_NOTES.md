@@ -12,6 +12,8 @@ A living log to carry context across chats/devices. Use this as the source of tr
 - Runtime: Docker (dev and prod compose), PWA with offline page
 
 ## Decision and change log (high level)
+- 2025-08-18: zoom fix
+  - Files: life-timer/COPILOT_NOTES.md, life-timer/src/app/globals.css, life-timer/src/app/layout.js
 - 2025-08-18: drop menu
   - Files: life-timer/COPILOT_NOTES.md, life-timer/src/app/age/page.js, life-timer/src/app/page.js, life-timer/src/store/timerStore.js
 - 2025-08-18: code red 2
