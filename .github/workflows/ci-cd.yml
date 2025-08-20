@@ -179,7 +179,10 @@ jobs:
 
             # Detect primary service name from compose config
             SERVICES=$(${DCMD} -f "$COMPOSE_BASE" --env-file "$ENV_FILE" config --services)
-            if echo "$SERVICES" | grep -q "^web$"; then
+            echo "Available services: $SERVICES"
+            if echo "$SERVICES" | grep -q "^nextjs-app$"; then
+              SERVICE="nextjs-app"
+            elif echo "$SERVICES" | grep -q "^web$"; then
               SERVICE="web"
             else
               SERVICE=$(echo "$SERVICES" | head -n1)
@@ -188,15 +191,30 @@ jobs:
               echo "Could not detect a service name from compose config" >&2
               exit 1
             fi
+            echo "Using service: $SERVICE"
 
+            # Create a comprehensive override that removes original port and adds new one
             OVERRIDE_FILE="/tmp/life-timer-override-${NEW_PORT}.yml"
             echo "Creating override ${OVERRIDE_FILE} mapping ${NEW_PORT}->3000"
+            # First create a base override that nullifies existing ports, then sets the new one
+            printf '%s\n' \
+              "services:" \
+              "  ${SERVICE}:" \
+              "    ports: []" \
+              > "$OVERRIDE_FILE"
+            # Then create a second override with the actual port mapping
+            OVERRIDE_PORT="/tmp/life-timer-port-${NEW_PORT}.yml"
             printf '%s\n' \
               "services:" \
               "  ${SERVICE}:" \
               "    ports:" \
               "      - \"${NEW_PORT}:3000\"" \
-              > "$OVERRIDE_FILE"
+              > "$OVERRIDE_PORT"
+            echo "Override files contents:"
+            echo "=== Port reset override ==="
+            cat "$OVERRIDE_FILE"
+            echo "=== Port mapping override ==="
+            cat "$OVERRIDE_PORT"
 
             # Override container_name to avoid conflicts when base compose sets a fixed name
             OVERRIDE_CN="/tmp/life-timer-override-cn-${NEW_PORT}.yml"
@@ -233,8 +251,10 @@ jobs:
             done
 
             echo "Building and starting new stack: ${NEW_PROJECT} on port ${NEW_PORT}"
+            echo "Checking final compose config..."
+            ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" -f "$OVERRIDE_PORT" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" config
             set +e
-            ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" build --pull --no-cache
+            ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" -f "$OVERRIDE_PORT" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" build --pull --no-cache
             BUILD_RC=$?
             set -e
             if [ $BUILD_RC -ne 0 ]; then
@@ -247,15 +267,15 @@ jobs:
                 "      context: \"${DEPLOY_PATH}\"" \
                 "      dockerfile: \"Dockerfile\"" \
                 > "$OVERRIDE_BUILD"
-              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_BUILD" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" build --pull --no-cache
+              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_BUILD" -f "$OVERRIDE_FILE" -f "$OVERRIDE_PORT" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" build --pull --no-cache
               USE_BUILD_OVERRIDE=1
             else
               USE_BUILD_OVERRIDE=0
             fi
             if [ "$USE_BUILD_OVERRIDE" = "1" ]; then
-              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_BUILD" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" up -d
+              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_BUILD" -f "$OVERRIDE_FILE" -f "$OVERRIDE_PORT" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" up -d
             else
-              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" up -d
+              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" -f "$OVERRIDE_PORT" -f "$OVERRIDE_CN" -f "$OVERRIDE_NET" --env-file "$ENV_FILE" up -d
             fi
 
             # Wait for health (Compose service name: web)
@@ -319,4 +339,4 @@ jobs:
             docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
 
             # Cleanup temporary files
-            rm -f "$OVERRIDE_FILE" "$OVERRIDE_BUILD" "$OVERRIDE_CN" "$OVERRIDE_NET" || true
+            rm -f "$OVERRIDE_FILE" "$OVERRIDE_PORT" "$OVERRIDE_BUILD" "$OVERRIDE_CN" "$OVERRIDE_NET" || true
