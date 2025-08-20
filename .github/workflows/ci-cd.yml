@@ -199,8 +199,30 @@ jobs:
             EOF
 
             echo "Building and starting new stack: ${NEW_PROJECT} on port ${NEW_PORT}"
+            set +e
             ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" --env-file "$ENV_FILE" build --pull --no-cache
-            ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" --env-file "$ENV_FILE" up -d
+            BUILD_RC=$?
+            set -e
+            if [ $BUILD_RC -ne 0 ]; then
+              echo "Primary build failed; attempting fallback by injecting temporary build context override..."
+              OVERRIDE_BUILD="/tmp/life-timer-override-build.yml"
+              cat > "$OVERRIDE_BUILD" <<EOF
+              services:
+                ${SERVICE}:
+                  build:
+                    context: "${DEPLOY_PATH}"
+                    dockerfile: "Dockerfile"
+              EOF
+              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_BUILD" -f "$OVERRIDE_FILE" --env-file "$ENV_FILE" build --pull --no-cache
+              USE_BUILD_OVERRIDE=1
+            else
+              USE_BUILD_OVERRIDE=0
+            fi
+            if [ "$USE_BUILD_OVERRIDE" = "1" ]; then
+              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_BUILD" -f "$OVERRIDE_FILE" --env-file "$ENV_FILE" up -d
+            else
+              ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_FILE" --env-file "$ENV_FILE" up -d
+            fi
 
             # Wait for health (Compose service name: web)
             NEW_CID=$(${DCMD} -p "$NEW_PROJECT" ps -q "$SERVICE")
@@ -263,4 +285,4 @@ jobs:
             docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'
 
             # Cleanup temporary files
-            rm -f "$OVERRIDE_FILE" || true
+            rm -f "$OVERRIDE_FILE" "$OVERRIDE_BUILD" || true

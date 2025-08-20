@@ -14,6 +14,8 @@ A living log to carry context across chats/devices. Use this as the source of tr
 ## Decision and change log (high level)
 - 2025-08-20: blue green fix
   - Files: .github/workflows/ci-cd.yml, life-timer/COPILOT_NOTES.md
+- 2025-08-20: blue green fix
+  - Files: .github/workflows/ci-cd.yml, life-timer/COPILOT_NOTES.md
 - 2025-08-20: Goal feature first rollout
   - Files: .github/workflows/ci-cd.yml, life-timer/COPILOT_NOTES.md, life-timer/src/app/goals/page.js, life-timer/src/app/page.js, life-timer/src/store/goalsStore.js
 - 2025-08-20: Add too Device fix
