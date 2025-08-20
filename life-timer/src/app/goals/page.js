@@ -10,6 +10,7 @@ export default function GoalsPage() {
   const { goals, addGoal, updateGoal, removeGoal } = useGoalsStore();
   const { birthDate } = useTimerStore();
   const [nowTick, setNowTick] = useState(0);
+  const [showAddForm, setShowAddForm] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setNowTick((n) => n + 1), 1000);
@@ -26,7 +27,24 @@ export default function GoalsPage() {
         </div>
 
         <div className="glass rounded-2xl p-6 space-y-6">
-          <GoalForm onAdd={addGoal} hasBirthDate={!!birthDate} />
+          {/* Add Goal Button/Section */}
+          <div className="space-y-3">
+            <button 
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="w-full bg-white/10 hover:bg-white/20 border border-white/30 text-white font-medium rounded-lg py-3 px-4 transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              <span>{showAddForm ? 'Cancel' : 'Add Goal'}</span>
+              <span className={`transform transition-transform duration-200 ${showAddForm ? 'rotate-45' : ''}`}>
+                +
+              </span>
+            </button>
+            
+            {showAddForm && (
+              <div className="animate-in slide-in-from-top-2 duration-200">
+                <GoalForm onAdd={(goal) => { addGoal(goal); setShowAddForm(false); }} hasBirthDate={!!birthDate} />
+              </div>
+            )}
+          </div>
 
           <section className="space-y-3">
             <h2 className="text-white/90 font-medium">Your Goals</h2>
@@ -74,8 +92,7 @@ function GoalForm({ onAdd, hasBirthDate }) {
   };
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-white/90 font-medium">Add Goal</h2>
+    <div className="space-y-3 bg-white/5 rounded-lg p-4 border border-white/10">
       <div className="grid grid-cols-2 gap-3">
         <label className="block text-sm text-white/80">
           Type
@@ -121,7 +138,7 @@ function GoalForm({ onAdd, hasBirthDate }) {
       )}
 
       <button onClick={submit} disabled={!canSubmit} className="w-full bg-black text-white border border-white font-medium rounded-lg py-2 transition hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed">Add Goal</button>
-    </section>
+    </div>
   );
 }
 
