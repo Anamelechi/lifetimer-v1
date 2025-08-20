@@ -191,12 +191,12 @@ jobs:
 
             OVERRIDE_FILE="/tmp/life-timer-override-${NEW_PORT}.yml"
             echo "Creating override ${OVERRIDE_FILE} mapping ${NEW_PORT}->3000"
-            cat > "$OVERRIDE_FILE" <<EOF
-            services:
-              ${SERVICE}:
-                ports:
-                  - "${NEW_PORT}:3000"
-            EOF
+            printf '%s\n' \
+              "services:" \
+              "  ${SERVICE}:" \
+              "    ports:" \
+              "      - \"${NEW_PORT}:3000\"" \
+              > "$OVERRIDE_FILE"
 
             echo "Building and starting new stack: ${NEW_PROJECT} on port ${NEW_PORT}"
             set +e
@@ -206,13 +206,13 @@ jobs:
             if [ $BUILD_RC -ne 0 ]; then
               echo "Primary build failed; attempting fallback by injecting temporary build context override..."
               OVERRIDE_BUILD="/tmp/life-timer-override-build.yml"
-              cat > "$OVERRIDE_BUILD" <<EOF
-              services:
-                ${SERVICE}:
-                  build:
-                    context: "${DEPLOY_PATH}"
-                    dockerfile: "Dockerfile"
-              EOF
+              printf '%s\n' \
+                "services:" \
+                "  ${SERVICE}:" \
+                "    build:" \
+                "      context: \"${DEPLOY_PATH}\"" \
+                "      dockerfile: \"Dockerfile\"" \
+                > "$OVERRIDE_BUILD"
               ${DCMD} -p "$NEW_PROJECT" -f "$COMPOSE_BASE" -f "$OVERRIDE_BUILD" -f "$OVERRIDE_FILE" --env-file "$ENV_FILE" build --pull --no-cache
               USE_BUILD_OVERRIDE=1
             else
