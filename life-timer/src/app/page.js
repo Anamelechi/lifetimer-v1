@@ -314,6 +314,7 @@ function MenuDropdown() {
             <Link href="/device" className="block px-3 py-2.5 hover:bg-white/10">Add to Device</Link>
             <Link href="/age" className="block px-3 py-2.5 hover:bg-white/10">Personal Info</Link>
             <Link href="/birth-chart" className="block px-3 py-2.5 hover:bg-white/10">Birth Chart</Link>
+            <Link href="/goals" className="block px-3 py-2.5 hover:bg-white/10">Goals</Link>
           </nav>
         </div>
       )}
